@@ -158,7 +158,12 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
     <label class="req">保護者氏名</label>
     <input type="text" id="fGuardian" placeholder="例）山田 花子">
     <label>郵便番号</label>
-    <input type="tel" id="fZip" placeholder="例）123-4567" style="max-width:200px">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input type="tel" id="fZip" placeholder="例）123-4567" inputmode="numeric"
+             style="flex:0 0 170px" oninput="onZip()">
+      <button class="btn sm sub" onclick="lookupZip()">住所を検索</button>
+      <span id="zipMsg" class="note" style="margin:0"></span>
+    </div>
     <label class="req">住所</label>
     <div class="chips" id="addrChips"></div>
     <input type="text" id="fAddr" placeholder="例）○○市○○町1-2-3" style="margin-top:6px">
@@ -208,6 +213,10 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
     <p class="note">受付番号が重ならないよう、iPad ごとに違う番号にしてください。</p>
     <label>住所の定型（カンマ区切り・ワンタップ入力用）</label>
     <input type="text" id="sAddr" placeholder="○○市○○町,○○市△△町" onchange="saveAddr()">
+    <p class="note">
+      郵便番号を7桁入れると住所が自動で出ます（インターネット接続が必要）。<br>
+      つながらないときのために、よく使う住所をここに登録しておくとワンタップで入力できます。
+    </p>
   </div>
 
   <div class="card">
@@ -362,6 +371,52 @@ function putAddr(a){
   el.focus();
 }
 
+/* ---- 郵便番号から住所を引く（zipcloud・ネット接続時のみ） ---- */
+let zipTimer=null, zipLast='';
+function zipMsg(t,warn){
+  const el=document.getElementById('zipMsg');
+  el.textContent=t||''; el.style.color = warn ? 'var(--warn)' : 'var(--sub)';
+}
+function onZip(){
+  const el=document.getElementById('fZip');
+  const z=el.value.replace(/[^0-9]/g,'').slice(0,7);
+  el.value = z.length>3 ? z.slice(0,3)+'-'+z.slice(3) : z;   // 123-4567 の形に整える
+  zipMsg('');
+  clearTimeout(zipTimer);
+  if(z.length===7 && z!==zipLast) zipTimer=setTimeout(lookupZip,250);  // 7桁そろったら自動で検索
+}
+function lookupZip(){
+  const z=document.getElementById('fZip').value.replace(/[^0-9]/g,'');
+  if(z.length!==7){ zipMsg('郵便番号を7桁で入力してください', true); return; }
+  zipLast=z; zipMsg('検索中…');
+  const ac=new AbortController(); const to=setTimeout(()=>ac.abort(), 6000);
+  fetch('https://zipcloud.ibsnet.co.jp/api/search?zipcode='+z, {signal:ac.signal})
+    .then(r=>r.json())
+    .then(j=>{
+      clearTimeout(to);
+      const rs=(j&&j.results)||[];
+      if(!rs.length){ zipMsg('この郵便番号の住所が見つかりませんでした。手で入力してください', true); return; }
+      const addrs=[...new Set(rs.map(r=>r.address1+r.address2+r.address3))];
+      if(addrs.length===1){ fillAddr(addrs[0]); }
+      else{
+        zipMsg('住所を選んでください');
+        document.getElementById('addrChips').innerHTML =
+          addrs.map(a=>`<button class="chip" onclick="fillAddr('${esc(a)}')">${esc(a)}</button>`).join('');
+      }
+    })
+    .catch(()=>{ clearTimeout(to); zipMsg('住所を取得できませんでした。手で入力してください', true); });
+}
+function fillAddr(a){
+  const el=document.getElementById('fAddr');
+  if(el.value && !el.value.startsWith(a) && !confirm(`住所を「${a}」に置き換えます。よろしいですか？`)) return;
+  const rest = el.value.startsWith(a) ? el.value.slice(a.length) : '';
+  el.value = a + rest;
+  zipMsg('番地・建物名を続けて入力してください');
+  renderAddrChips();
+  el.focus();
+  try{ el.setSelectionRange(el.value.length, el.value.length); }catch(e){}
+}
+
 /* ===================== 確認・保存 ===================== */
 function confirmEntry(){
   const d={
@@ -443,6 +498,7 @@ function submitEntry(){
 function resetForm(backToList){
   ['fStudent','fKana','fGuardian','fZip','fAddr','fTel','fMemo'].forEach(id=>document.getElementById(id).value='');
   cart={}; editing=null; setEditUI();
+  zipLast=''; zipMsg(''); renderAddrChips();
   renderItems(); calcTotal(); closeOvl(); window.scrollTo(0,0);
   if(backToList) go('list');
 }
@@ -467,6 +523,7 @@ function editOrder(i){
     if(idx<0){ missing.push(l.n); return; }
     cart[idx]={size:l.size, qty:l.qty, memo:l.memo||''};
   });
+  zipLast=''; zipMsg(''); renderAddrChips();
   renderItems(); calcTotal(); setEditUI(); go('entry');
   if(missing.length) alert('商品マスタから消えている品目があるため、読み込めませんでした：\n・'+missing.join('\n・'));
 }
