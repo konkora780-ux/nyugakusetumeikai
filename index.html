@@ -66,7 +66,6 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);border-c
 .grp[data-v=isagoda]>.gh{background:var(--v-isagoda)}
 .grp[data-v=tamaru]>.gh{background:var(--v-tamaru)}
 .grp[data-v=school]>.gh{background:var(--v-school)}
-.subhd{padding:6px 14px;background:#f4f6fa;font-size:13px;font-weight:700;color:var(--sub);border-top:1px solid var(--line)}
 
 .item{padding:12px 14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .item .nm{flex:1 1 100%;font-weight:600}
@@ -369,19 +368,11 @@ function renderItems(){
   document.getElementById('itemsArea').innerHTML = GROUPS.map(G=>{
     const rows = master.map((m,i)=>[m,i]).filter(([m])=>m.g===G.id);
     if(!rows.length) return '';
-    const hasSub = rows.some(([m])=>m.sub===1);
-    let html='', lastSub=null;
-    rows.forEach(([m,i])=>{
-      if(hasSub && m.sub!==lastSub){
-        lastSub = m.sub||0;
-        html += `<div class="subhd">${SUBNAME[lastSub]}</div>`;
-      }
-      html += itemHtml(m,i);
-    });
+    /* 基本／希望者のみ の区分は申込書の小計にだけ使い、受付画面には出さない */
     return `<div class="grp" data-v="${G.v}" id="grp${G.id}">
       <div class="gh">${esc(G.name)}<span class="vn">${esc(vName(G.v))}</span>
         <span class="cnt" id="gs${G.id}"></span></div>
-      ${html}
+      ${rows.map(([m,i])=>itemHtml(m,i)).join('')}
     </div>`;
   }).join('');
   GROUPS.forEach(G=>updateGroupSum(G.id));
