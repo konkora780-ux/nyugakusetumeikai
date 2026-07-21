@@ -165,7 +165,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
       <span id="zipMsg" class="note" style="margin:0"></span>
     </div>
     <label class="req">住所</label>
-    <div class="chips" id="addrChips"></div>
+    <div class="chips" id="zipCands"></div>
     <input type="text" id="fAddr" placeholder="例）○○市○○町1-2-3" style="margin-top:6px">
     <label class="req">連絡先（電話）</label>
     <input type="tel" id="fTel" placeholder="例）090-1234-5678">
@@ -211,24 +211,19 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
       <option value="3">3号機</option><option value="4">4号機</option>
     </select>
     <p class="note">受付番号が重ならないよう、iPad ごとに違う番号にしてください。</p>
-    <label>住所の定型（カンマ区切り・ワンタップ入力用）</label>
-    <input type="text" id="sAddr" placeholder="○○市○○町,○○市△△町" onchange="saveAddr()">
-    <p class="note">
-      郵便番号を7桁入れると住所が自動で出ます（インターネット接続が必要）。<br>
-      つながらないときのために、よく使う住所をここに登録しておくとワンタップで入力できます。
-    </p>
   </div>
 
   <div class="card">
     <h2>商品マスタ</h2>
-    <p class="note" style="margin:0 0 10px">
+    <p class="note" style="margin:0 0 12px">
       サイズは「/」で区切って入力（例：S/M/L/LL）。空欄ならサイズ選択なしになります。<br>
       <b>採寸欄</b>にチェックを入れると、その品目を選んだときに「採寸・お直しの内容」の記入欄が出ます（制服・作業着用）。
     </p>
     <div id="masterArea"></div>
-    <button class="btn sm sub" style="margin-top:12px" onclick="addItem()">＋ 品目を追加</button>
-    <button class="btn sm" style="margin-top:12px" onclick="saveMaster()">保存</button>
-    <button class="btn sm sub" style="margin-top:12px" onclick="resetMaster()">初期状態に戻す</button>
+    <div class="row" style="margin-top:16px">
+      <button class="btn" onclick="saveMaster()">保存</button>
+      <button class="btn sub" onclick="resetMaster()">初期状態に戻す</button>
+    </div>
   </div>
 
   <div class="card">
@@ -264,7 +259,7 @@ const VENDORS=[
   {id:'tamaru', name:'田丸スポーツ'},
   {id:'school', name:'学校'}
 ];
-const K_MASTER='nm_master', K_ORDERS='nm_orders', K_DEV='nm_dev', K_ADDR='nm_addr', K_SEQ='nm_seq';
+const K_MASTER='nm_master', K_ORDERS='nm_orders', K_DEV='nm_dev', K_SEQ='nm_seq';
 
 /* 仮データ。設定画面から自由に書き換えられます */
 /* m:true = 採寸の備考欄を出す。単価は設定タブで入力してください */
@@ -288,7 +283,6 @@ const copy = o => JSON.parse(JSON.stringify(o));
 let master = load(K_MASTER, copy(DEFAULT_MASTER));  // 初期値を書き換えないよう複製
 let orders = load(K_ORDERS, []);
 let devNo  = load(K_DEV, '1');
-let addrPresets = load(K_ADDR, []);
 let seq    = load(K_SEQ, 0);
 let cart   = {};   // itemIndex -> {size, qty}
 let editing= null; // 訂正中の orders 内インデックス（新規受付は null）
@@ -361,18 +355,9 @@ function calcTotal(){
   document.getElementById('totalYen').textContent = yen(t);
   return t;
 }
-function renderAddrChips(){
-  document.getElementById('addrChips').innerHTML =
-    addrPresets.map(a=>`<button class="chip" onclick="putAddr('${esc(a)}')">${esc(a)}</button>`).join('');
-}
-function putAddr(a){
-  const el=document.getElementById('fAddr');
-  if(!el.value.startsWith(a)) el.value = a + el.value;
-  el.focus();
-}
-
 /* ---- 郵便番号から住所を引く（zipcloud・ネット接続時のみ） ---- */
 let zipTimer=null, zipLast='';
+function clearCands(){ document.getElementById('zipCands').innerHTML=''; }
 function zipMsg(t,warn){
   const el=document.getElementById('zipMsg');
   el.textContent=t||''; el.style.color = warn ? 'var(--warn)' : 'var(--sub)';
@@ -400,7 +385,7 @@ function lookupZip(){
       if(addrs.length===1){ fillAddr(addrs[0]); }
       else{
         zipMsg('住所を選んでください');
-        document.getElementById('addrChips').innerHTML =
+        document.getElementById('zipCands').innerHTML =
           addrs.map(a=>`<button class="chip" onclick="fillAddr('${esc(a)}')">${esc(a)}</button>`).join('');
       }
     })
@@ -412,7 +397,7 @@ function fillAddr(a){
   const rest = el.value.startsWith(a) ? el.value.slice(a.length) : '';
   el.value = a + rest;
   zipMsg('番地・建物名を続けて入力してください');
-  renderAddrChips();
+  clearCands();
   el.focus();
   try{ el.setSelectionRange(el.value.length, el.value.length); }catch(e){}
 }
@@ -498,7 +483,7 @@ function submitEntry(){
 function resetForm(backToList){
   ['fStudent','fKana','fGuardian','fZip','fAddr','fTel','fMemo'].forEach(id=>document.getElementById(id).value='');
   cart={}; editing=null; setEditUI();
-  zipLast=''; zipMsg(''); renderAddrChips();
+  zipLast=''; zipMsg(''); clearCands();
   renderItems(); calcTotal(); closeOvl(); window.scrollTo(0,0);
   if(backToList) go('list');
 }
@@ -523,7 +508,7 @@ function editOrder(i){
     if(idx<0){ missing.push(l.n); return; }
     cart[idx]={size:l.size, qty:l.qty, memo:l.memo||''};
   });
-  zipLast=''; zipMsg(''); renderAddrChips();
+  zipLast=''; zipMsg(''); clearCands();
   renderItems(); calcTotal(); setEditUI(); go('entry');
   if(missing.length) alert('商品マスタから消えている品目があるため、読み込めませんでした：\n・'+missing.join('\n・'));
 }
@@ -625,7 +610,7 @@ function printSummary(){
   const html = VENDORS.map(v=>{
     const agg={};
     orders.forEach(o=>o.lines.filter(l=>l.v===v.id).forEach(l=>{
-      const k=l.n+' '+(l.size||'');
+      const k=l.n+' '+(l.size||'');
       agg[k]=agg[k]||{n:l.n,size:l.size,p:l.p,qty:0};
       agg[k].qty+=l.qty;
     }));
@@ -707,20 +692,25 @@ function saveDev(){
   devNo=document.getElementById('sDev').value; save(K_DEV,devNo);
   document.getElementById('devLabel').textContent='端末 '+devNo+'号機';
 }
-function saveAddr(){
-  addrPresets=document.getElementById('sAddr').value.split(',').map(s=>s.trim()).filter(Boolean);
-  save(K_ADDR,addrPresets); renderAddrChips();
-}
 function renderMaster(){
-  document.getElementById('masterArea').innerHTML = master.map((m,i)=>`
-    <div class="mrow">
-      <select data-f="v" data-i="${i}">${VENDORS.map(v=>`<option value="${v.id}" ${m.v===v.id?'selected':''}>${esc(v.name)}</option>`).join('')}</select>
-      <input type="text" data-f="n" data-i="${i}" value="${esc(m.n)}" placeholder="品名">
-      <input type="text" class="sz" data-f="s" data-i="${i}" value="${esc(m.s)}" placeholder="S/M/L">
-      <input type="text" class="p" data-f="p" data-i="${i}" value="${m.p}" placeholder="単価">
-      <label class="ck"><input type="checkbox" data-f="m" data-i="${i}" ${m.m?'checked':''}>採寸欄</label>
-      <button class="btn sm sub" onclick="delItem(${i})">×</button>
-    </div>`).join('');
+  document.getElementById('masterArea').innerHTML = VENDORS.map(v=>{
+    const rows = master.map((m,i)=>[m,i]).filter(([m])=>m.v===v.id);
+    return `<div class="vendor" data-v="${v.id}" style="margin-bottom:14px">
+      <div class="vh">${esc(v.name)}<span style="float:right;font-weight:400;font-size:13px">${rows.length}品目</span></div>
+      <div style="padding:4px 12px 12px">
+        ${rows.length?rows.map(([m,i])=>`
+          <div class="mrow">
+            <input type="text" data-f="n" data-i="${i}" value="${esc(m.n)}" placeholder="品名">
+            <input type="text" class="sz" data-f="s" data-i="${i}" value="${esc(m.s)}" placeholder="サイズ S/M/L">
+            <input type="tel" class="p" data-f="p" data-i="${i}" value="${m.p}" placeholder="単価">
+            <label class="ck"><input type="checkbox" data-f="m" data-i="${i}" ${m.m?'checked':''}>採寸欄</label>
+            <button class="btn sm sub" onclick="delItem(${i})">×</button>
+          </div>`).join('')
+        :'<p class="note" style="margin:10px 0">品目がありません。</p>'}
+        <button class="btn sm sub" style="margin-top:10px" onclick="addItem('${v.id}')">＋ ${esc(v.name)}に品目を追加</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 function collectMaster(){
   document.querySelectorAll('#masterArea [data-f]').forEach(el=>{
@@ -729,7 +719,7 @@ function collectMaster(){
                  : (f==='m') ? el.checked : el.value;
   });
 }
-function addItem(){ collectMaster(); master.push({v:'isagoda',n:'',s:'',p:0}); renderMaster(); }
+function addItem(vid){ collectMaster(); master.push({v:vid,n:'',s:'',p:0}); renderMaster(); }
 function delItem(i){ collectMaster(); master.splice(i,1); renderMaster(); }
 function resetMaster(){
   if(!confirm('商品マスタを初期状態に戻します。入力した単価や品目は消えます。よろしいですか？')) return;
@@ -761,9 +751,8 @@ function saveMaster(){
 
 /* ===================== 起動 ===================== */
 document.getElementById('sDev').value=devNo;
-document.getElementById('sAddr').value=addrPresets.join(',');
 document.getElementById('devLabel').textContent='端末 '+devNo+'号機';
-renderAddrChips(); renderItems(); calcTotal();
+renderItems(); calcTotal();
 </script>
 </body>
 </html>
