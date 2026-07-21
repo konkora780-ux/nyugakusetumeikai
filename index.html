@@ -57,6 +57,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);border-c
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
 .chip{padding:8px 12px;font-size:14px;background:#eef3fa;border:1px solid #cfdcee;border-radius:99px;color:var(--accent);font-family:inherit}
 .chip:active{background:#dbe7f7}
+.chip.big{padding:12px 24px;font-size:17px;font-weight:700}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
 
 /* 分類ブロック（販売元で色分け） */
 .grp{border-radius:12px;overflow:hidden;border:1px solid var(--line);margin-bottom:16px;background:#fff}
@@ -115,6 +117,9 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 .mrow .dd{flex:1 1 110px;width:auto}
 .mrow .ck{display:flex;align-items:center;gap:4px;margin:0;font-size:13px;white-space:nowrap;flex:0 0 auto}
 .mrow .ck input{width:20px;height:20px}
+.dsel{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--sub);font-weight:600}
+.dsel .ck{display:flex;align-items:center;gap:4px;margin:0;font-size:14px;color:var(--text)}
+.dsel .ck input{width:20px;height:20px}
 
 /* ============ 印刷（申込書 A4 1枚） ============ */
 #printArea{display:none}
@@ -170,6 +175,9 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
   <div class="card">
     <h2>お申込者の情報</h2>
+    <label class="req">学部</label>
+    <div class="chips" id="deptSel"></div>
+    <p class="note" id="deptNote">学部を選ぶと、その学部で購入するものが下に出ます。</p>
     <label class="req">生徒氏名</label>
     <input type="text" id="fStudent" placeholder="例）山田 太郎">
     <label class="req">ふりがな</label>
@@ -276,8 +284,9 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const SCHOOL='釜石祥雲支援学校高等部';
+const SCHOOL='釜石祥雲支援学校';
 const TITLE ='制服・作業着・運動着申込書';
+const DEPTS =['小学部','中学部','高等部'];
 
 const VENDORS=[
   {id:'isagoda',name:'いさごだ'},
@@ -290,8 +299,11 @@ const GROUPS=[
   {id:'f', name:'女子制服',              v:'isagoda'},
   {id:'w', name:'作業着（刺繍なし）',     v:'isagoda'},
   {id:'g', name:'運動着',                v:'tamaru'},
+  {id:'u', name:'上履き',                v:'tamaru'},
   {id:'s', name:'校章等',                v:'school'}
 ];
+/* どの分類をどの学部に出すか。作業着と上履きは高等部のみ */
+const DEFAULT_GDEPT={ m:[...DEPTS], f:[...DEPTS], w:['高等部'], g:[...DEPTS], u:['高等部'], s:[...DEPTS] };
 /* 女子制服だけ、基本／希望者のみ で小計が分かれる */
 const SUBNAME={0:'基本', 1:'希望者のみ'};
 
@@ -326,23 +338,27 @@ const DEFAULT_MASTER=[
   {g:'g',n:'Ｔシャツ',                        p:0,    s:'自由'},
   {g:'g',n:'ポロシャツ',                      p:0,    s:'自由'},
 
+  {g:'u',n:'上履き',                          p:0,    s:'自由'},
+
   {g:'s',n:'校 章',                          p:1200, s:''},
   {g:'s',n:'台 布',                          p:220,  s:'', d:'＊女子のみ', h:'所持していない場合購入'},
   {g:'s',n:'ボタンセット',                    p:600,  s:'', d:'＊男子のみ', h:'学生服を購入しない場合'}
 ];
 
-const K_MASTER='nm_master2', K_ORDERS='nm_orders', K_DEV='nm_dev', K_SEQ='nm_seq';
+const K_MASTER='nm_master3', K_ORDERS='nm_orders', K_DEV='nm_dev', K_SEQ='nm_seq', K_GDEPT='nm_gdept';
 
 const copy = o => JSON.parse(JSON.stringify(o));
 function load(k,d){ try{const v=localStorage.getItem(k); return v?JSON.parse(v):d;}catch(e){return d;} }
 function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
 
 let master = load(K_MASTER, copy(DEFAULT_MASTER));
+let gdept  = load(K_GDEPT, copy(DEFAULT_GDEPT));
 let orders = load(K_ORDERS, []);
 let devNo  = load(K_DEV, '1');
 let seq    = load(K_SEQ, 0);
 let cart   = {};    // master のインデックス -> {size,qty,memo}
 let editing= null;  // 訂正中の orders インデックス
+let dept   = '';    // 選択中の学部
 
 function yen(n){ return n.toLocaleString('ja-JP')+'円'; }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -350,6 +366,8 @@ function grp(id){ return GROUPS.find(g=>g.id===id) || {id, name:id, v:'school'};
 function vName(id){ const v=VENDORS.find(x=>x.id===id); return v?v.name:id; }
 function vOf(gid){ return grp(gid).v; }
 function sizeMode(s){ return !s ? 'none' : (s==='自由' ? 'free' : 'list'); }
+function groupsFor(d){ return GROUPS.filter(G=>(gdept[G.id]||DEPTS).includes(d)); }
+function inDept(gid,d){ return (gdept[gid]||DEPTS).includes(d); }
 
 /* ===================== 画面切替 ===================== */
 function go(p){
@@ -364,8 +382,26 @@ function go(p){
 }
 
 /* ===================== 受付画面 ===================== */
+function renderDept(){
+  document.getElementById('deptSel').innerHTML =
+    DEPTS.map(d=>`<button class="chip big ${dept===d?'on':''}" onclick="setDept('${d}')">${d}</button>`).join('');
+  document.getElementById('deptNote').textContent =
+    dept ? `${dept}で購入するものが下に出ています。` : '学部を選ぶと、その学部で購入するものが下に出ます。';
+}
+function setDept(d){
+  if(dept===d) return;
+  dept=d;
+  // 学部が変わって表示されなくなった品目は選択を解除する
+  for(const i in cart){ if(master[i] && !inDept(master[i].g, d)) delete cart[i]; }
+  renderDept(); renderItems(); calcTotal();
+}
 function renderItems(){
-  document.getElementById('itemsArea').innerHTML = GROUPS.map(G=>{
+  if(!dept){
+    document.getElementById('itemsArea').innerHTML =
+      '<div class="card"><div class="empty">まず上で<b>学部</b>を選んでください。</div></div>';
+    return;
+  }
+  document.getElementById('itemsArea').innerHTML = groupsFor(dept).map(G=>{
     const rows = master.map((m,i)=>[m,i]).filter(([m])=>m.g===G.id);
     if(!rows.length) return '';
     /* 基本／希望者のみ の区分は申込書の小計にだけ使い、受付画面には出さない */
@@ -375,7 +411,7 @@ function renderItems(){
       ${rows.map(([m,i])=>itemHtml(m,i)).join('')}
     </div>`;
   }).join('');
-  GROUPS.forEach(G=>updateGroupSum(G.id));
+  groupsFor(dept).forEach(G=>updateGroupSum(G.id));
 }
 function itemHtml(m,i){
   const c=cart[i]||{size:'',qty:0,memo:''};
@@ -506,10 +542,11 @@ function fillAddr(a){
 function v(id){ return document.getElementById(id).value.trim(); }
 function confirmEntry(){
   const d={
-    student:v('fStudent'), kana:v('fKana'), guardian:v('fGuardian'),
+    dept, student:v('fStudent'), kana:v('fKana'), guardian:v('fGuardian'),
     zip:v('fZip'), addr:v('fAddr'), tel:v('fTel'), memo:v('fMemo')
   };
   const miss=[];
+  if(!d.dept)     miss.push('学部');
   if(!d.student)  miss.push('生徒氏名');
   if(!d.kana)     miss.push('ふりがな');
   if(!d.guardian) miss.push('保護者氏名');
@@ -535,6 +572,7 @@ function confirmEntry(){
   openOvl(`<div>
     <h2 style="margin:0 0 14px">${ed?`受付番号 ${esc(orders[editing].no)} を次の内容に訂正します`:'この内容で申し込みます'}</h2>
     <table style="margin-bottom:14px">
+      <tr><th>学部</th><td>${esc(d.dept)}</td></tr>
       <tr><th>生徒氏名</th><td>${esc(d.student)}（${esc(d.kana)}）</td></tr>
       <tr><th>保護者氏名</th><td>${esc(d.guardian)}</td></tr>
       <tr><th>住所</th><td>${esc(d.zip)} ${esc(d.addr)}</td></tr>
@@ -582,9 +620,9 @@ function submitEntry(){
 }
 function resetForm(backToList){
   ['fStudent','fKana','fGuardian','fZip','fAddr','fTel','fMemo'].forEach(id=>document.getElementById(id).value='');
-  cart={}; editing=null; setEditUI();
+  cart={}; editing=null; dept=''; setEditUI();
   zipLast=''; zipMsg(''); clearCands();
-  renderItems(); calcTotal(); closeOvl(); window.scrollTo(0,0);
+  renderDept(); renderItems(); calcTotal(); closeOvl(); window.scrollTo(0,0);
   if(backToList) go('list');
 }
 
@@ -598,6 +636,7 @@ function setEditUI(){
 function editOrder(i){
   const o=orders[i];
   editing=i;
+  dept=o.dept||'';
   const set=(id,val)=>document.getElementById(id).value=val||'';
   set('fStudent',o.student); set('fKana',o.kana); set('fGuardian',o.guardian);
   set('fZip',o.zip); set('fAddr',o.addr); set('fTel',o.tel); set('fMemo',o.memo);
@@ -609,7 +648,7 @@ function editOrder(i){
     cart[idx]={size:l.size, qty:l.qty, memo:l.memo||''};
   });
   zipLast=''; zipMsg(''); clearCands();
-  renderItems(); calcTotal(); setEditUI(); go('entry');
+  renderDept(); renderItems(); calcTotal(); setEditUI(); go('entry');
   if(missing.length) alert('商品マスタから消えている品目があるため、読み込めませんでした：\n・'+missing.join('\n・'));
 }
 function cancelEdit(){
@@ -630,9 +669,10 @@ function renderList(){
   const a=document.getElementById('listArea');
   if(!orders.length){ a.innerHTML='<div class="empty">まだ受付データがありません。</div>'; return; }
   a.innerHTML=`<table>
-    <tr><th>受付番号</th><th>生徒氏名</th><th>保護者</th><th>点数</th><th>合計</th><th style="width:120px"></th></tr>
+    <tr><th>受付番号</th><th>学部</th><th>生徒氏名</th><th>保護者</th><th>点数</th><th>合計</th><th style="width:120px"></th></tr>
     ${orders.map((o,i)=>`<tr>
       <td>${esc(o.no)}${o.fixedAt?'<span class="badge">訂正済</span>':''}</td>
+      <td>${esc(o.dept||'')}</td>
       <td>${esc(o.student)}</td><td>${esc(o.guardian)}</td>
       <td class="n">${o.lines.reduce((s,l)=>s+l.qty,0)}</td>
       <td class="n">${yen(o.total)}</td>
@@ -641,7 +681,7 @@ function renderList(){
         <button class="btn sm sub" onclick="delOrder(${i})">削除</button>
       </td>
     </tr>`).join('')}
-    <tr><th colspan="4">合計 ${orders.length}件</th>
+    <tr><th colspan="5">合計 ${orders.length}件</th>
         <th class="n">${yen(orders.reduce((s,o)=>s+o.total,0))}</th><th></th></tr>
   </table>`;
 }
@@ -654,7 +694,9 @@ function delOrder(i){
 function sheetHtml(o){
   const find = m => o.lines.find(l=>l.g===m.g && l.n===m.n);
   let body='';
-  GROUPS.forEach(G=>{
+  /* その学部で扱う分類だけを印字する（作業着・上履きは高等部のみ） */
+  const gs = o.dept ? groupsFor(o.dept) : GROUPS;
+  gs.forEach(G=>{
     const rows=master.map((m,i)=>[m,i]).filter(([m])=>m.g===G.id);
     if(!rows.length) return;
     const hasSub=rows.some(([m])=>m.sub===1);
@@ -691,7 +733,7 @@ function sheetHtml(o){
 
   const dt=new Date(o.fixedAt||o.at);
   return `<div class="sheet">
-    <h3>${esc(SCHOOL)}　${esc(TITLE)}</h3>
+    <h3>${esc(SCHOOL)}${esc(o.dept||'')}　${esc(TITLE)}</h3>
     <div class="meta">
       <span>受付番号：${esc(o.no)}${o.fixedAt?'（訂正後）':''}</span>
       <span>受付日：${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日</span>
@@ -706,6 +748,7 @@ function sheetHtml(o){
           <td class="r">${o.total.toLocaleString('ja-JP')}</td><td>円</td></tr>
     </table>
     <table class="kv">
+      <tr><th>学部</th><td>${esc(o.dept||'')}</td></tr>
       <tr><th>生徒氏名</th><td>${esc(o.student)}　（${esc(o.kana)}）</td></tr>
       <tr><th>保護者氏名</th><td>${esc(o.guardian)}</td></tr>
       <tr><th>住所</th><td>${esc(o.zip)}　${esc(o.addr)}</td></tr>
@@ -731,13 +774,13 @@ function printSheets(){
 function memoTable(vid){
   const rows=[];
   orders.forEach(o=>o.lines.forEach(l=>{
-    if(vOf(l.g)===vid && l.memo) rows.push({no:o.no, name:o.student, n:l.n, size:l.size, memo:l.memo});
+    if(vOf(l.g)===vid && l.memo) rows.push({no:o.no, dept:o.dept||'', name:o.student, n:l.n, size:l.size, memo:l.memo});
   }));
   if(!rows.length) return '';
   return `<h4 style="font-size:11pt;margin:5mm 0 2mm">仕立て・お直し 指示一覧</h4>
-    <table><tr><th style="width:18mm">受付番号</th><th style="width:32mm">生徒氏名</th>
-      <th style="width:42mm">品名</th><th style="width:16mm">サイズ</th><th>内容</th></tr>
-    ${rows.map(r=>`<tr><td class="c">${esc(r.no)}</td><td>${esc(r.name)}</td><td>${esc(r.n)}</td>
+    <table><tr><th style="width:18mm">受付番号</th><th style="width:16mm">学部</th><th style="width:30mm">生徒氏名</th>
+      <th style="width:38mm">品名</th><th style="width:16mm">サイズ</th><th>内容</th></tr>
+    ${rows.map(r=>`<tr><td class="c">${esc(r.no)}</td><td class="c">${esc(r.dept)}</td><td>${esc(r.name)}</td><td>${esc(r.n)}</td>
       <td class="c">${esc(r.size||'—')}</td><td>${esc(r.memo)}</td></tr>`).join('')}
     </table>`;
 }
@@ -755,7 +798,8 @@ function printSummary(){
     const tot=a.reduce((s,x)=>s+x.p*x.qty,0);
     return `<div class="sheet">
       <h3>${esc(v.name)} 御中　注文集計表</h3>
-      <div class="meta"><span>${esc(SCHOOL)}　申込者数：${orders.length}名</span>
+      <div class="meta"><span>${esc(SCHOOL)}　申込者数：${orders.length}名（${
+        DEPTS.map(d=>d+' '+orders.filter(o=>o.dept===d).length+'名').join('／')}）</span>
         <span>作成日：${new Date().toLocaleDateString('ja-JP')}</span></div>
       <table><tr><th style="width:34mm">分類</th><th>品名</th><th style="width:20mm">サイズ</th>
         <th style="width:14mm">数量</th><th style="width:20mm">単価</th><th style="width:24mm">金額</th></tr>
@@ -777,18 +821,18 @@ function doPrint(html){
 /* ===================== 入出力 ===================== */
 function exportCsv(){
   if(!orders.length){ alert('受付データがありません。'); return; }
-  const head=['受付番号','生徒氏名','ふりがな','保護者氏名','郵便番号','住所','連絡先',
+  const head=['受付番号','学部','生徒氏名','ふりがな','保護者氏名','郵便番号','住所','連絡先',
               '販売元','分類','品名','サイズ','備考（仕立て等）','単価','数量','金額','全体備考'];
   const rows=[head];
   orders.forEach(o=>o.lines.forEach(l=>rows.push([
-    o.no,o.student,o.kana,o.guardian,o.zip,o.addr,o.tel,
+    o.no,o.dept||'',o.student,o.kana,o.guardian,o.zip,o.addr,o.tel,
     vName(vOf(l.g)),grp(l.g).name,l.n,l.size,l.memo||'',l.p,l.qty,l.p*l.qty,o.memo||''
   ])));
   const csv='﻿'+rows.map(r=>r.map(c=>`"${String(c==null?'':c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
   dl(csv,'text/csv','申込一覧');
 }
 function exportJson(){
-  dl(JSON.stringify({master,orders,dev:devNo},null,1),'application/json','申込データ_'+devNo+'号機');
+  dl(JSON.stringify({master,gdept,orders,dev:devNo},null,1),'application/json','申込データ_'+devNo+'号機');
 }
 function dl(text,type,base){
   const d=new Date(), p=n=>String(n).padStart(2,'0');
@@ -838,6 +882,11 @@ function renderMaster(){
       <div class="gh">${esc(G.name)}<span class="vn">${esc(vName(G.v))}</span>
         <span class="cnt">${rows.length}品目</span></div>
       <div style="padding:4px 12px 12px">
+        <div class="dsel">
+          <span>出す学部</span>
+          ${DEPTS.map(d=>`<label class="ck"><input type="checkbox"
+            ${inDept(G.id,d)?'checked':''} onchange="toggleDept('${G.id}','${d}',this.checked)">${d}</label>`).join('')}
+        </div>
         ${rows.length?rows.map(([m,i])=>`
           <div class="mrow">
             <input type="text" data-f="n" data-i="${i}" value="${esc(m.n)}" placeholder="品名">
@@ -852,6 +901,14 @@ function renderMaster(){
       </div>
     </div>`;
   }).join('');
+}
+function toggleDept(gid,d,on){
+  const cur=new Set(gdept[gid]||DEPTS);
+  if(on) cur.add(d); else cur.delete(d);
+  gdept[gid]=DEPTS.filter(x=>cur.has(x));
+  save(K_GDEPT,gdept);
+  if(dept){ for(const i in cart){ if(master[i] && !inDept(master[i].g,dept)) delete cart[i]; } }
+  renderItems(); calcTotal();
 }
 function collectMaster(){
   document.querySelectorAll('#masterArea [data-f]').forEach(el=>{
@@ -877,8 +934,9 @@ function saveMaster(){
 }
 function resetMaster(){
   if(!confirm('商品マスタを初期状態に戻します。入力した単価や品目は消えます。よろしいですか？')) return;
-  master=copy(DEFAULT_MASTER);
-  save(K_MASTER,master); renderMaster(); cart={}; renderItems(); calcTotal();
+  master=copy(DEFAULT_MASTER); gdept=copy(DEFAULT_GDEPT);
+  save(K_MASTER,master); save(K_GDEPT,gdept);
+  renderMaster(); cart={}; renderItems(); calcTotal();
   alert('初期状態に戻しました。');
 }
 function recalcPrices(){
@@ -900,7 +958,7 @@ function recalcPrices(){
 /* ===================== 起動 ===================== */
 document.getElementById('sDev').value=devNo;
 document.getElementById('devLabel').textContent='端末 '+devNo+'号機';
-renderItems(); calcTotal();
+renderDept(); renderItems(); calcTotal();
 </script>
 </body>
 </html>
