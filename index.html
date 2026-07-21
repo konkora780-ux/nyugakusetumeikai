@@ -80,6 +80,11 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);border-c
 .qty button{width:46px;height:46px;border:0;background:#eef1f6;font-size:22px;font-weight:700;color:var(--accent);font-family:inherit}
 .qty button:active{background:#dde3ec}
 .qty span{width:44px;text-align:center;font-size:18px;font-weight:700}
+.amt{
+  flex:0 0 auto;min-width:112px;text-align:right;
+  font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent);
+}
+.amt.zero{color:#c3c9d4;font-weight:400}
 .memoBox{flex:1 1 100%;margin-top:4px}
 .memoBox textarea{font-size:16px;padding:10px;background:#fffdf5;border-color:#e0cf94}
 .gsum{padding:10px 14px;border-top:1px solid var(--line);background:#fafbfd;display:flex;font-size:14px;font-weight:700}
@@ -407,6 +412,7 @@ function itemHtml(m,i){
       <span id="q${i}">${c.qty}</span>
       <button onclick="addQty(${i},1)">＋</button>
     </div>
+    <div class="amt${c.qty?'':' zero'}" id="am${i}">${lineAmt(m,c)}</div>
     ${m.m?`<div class="memoBox ${c.qty>0?'':'hide'}" id="mb${i}">
       <label style="margin:0 0 4px">備考（仕立て等）</label>
       <textarea rows="2" id="mt${i}" oninput="setMemo(${i},this.value)"
@@ -414,6 +420,7 @@ function itemHtml(m,i){
     </div>`:''}
   </div>`;
 }
+function lineAmt(m,c){ return c.qty ? yen(m.p*c.qty) : '－'; }
 function slot(i){ return cart[i]||(cart[i]={size:'',qty:0,memo:''}); }
 function setSize(i,v){ slot(i).size=v; if(v && cart[i].qty===0) addQty(i,1); }
 function setMemo(i,v){ slot(i).memo=v; }
@@ -422,6 +429,9 @@ function addQty(i,d){
   c.qty=Math.max(0, c.qty+d);
   document.getElementById('q'+i).textContent=c.qty;
   document.getElementById('it'+i).classList.toggle('sel', c.qty>0);
+  const am=document.getElementById('am'+i);
+  am.textContent=lineAmt(master[i],c);
+  am.classList.toggle('zero', c.qty===0);
   const mb=document.getElementById('mb'+i);
   if(mb) mb.classList.toggle('hide', c.qty===0);
   updateGroupSum(master[i].g);
