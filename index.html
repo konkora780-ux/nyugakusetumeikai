@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>入学説明会 用品申込</title>
+<style>
+:root{
+  --bg:#f4f6f9; --card:#fff; --line:#dfe4ec; --text:#1f2937; --sub:#6b7280;
+  --accent:#1d6fd0; --accent-d:#155aa8; --ok:#0f9d58; --warn:#c0392b;
+  --v-isagoda:#2f7ed8; --v-tamaru:#e07b39; --v-school:#5b9b5b;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
+  font-size:17px;line-height:1.6;-webkit-text-size-adjust:100%;
+}
+header{
+  background:var(--accent);color:#fff;padding:10px 16px;
+  display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:20;
+}
+header h1{font-size:18px;margin:0;font-weight:600;flex:1}
+header .dev{font-size:13px;background:rgba(255,255,255,.2);padding:3px 10px;border-radius:99px}
+nav{display:flex;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:47px;z-index:19}
+nav button{
+  flex:1;padding:13px 4px;border:0;background:none;font-size:15px;font-weight:600;
+  color:var(--sub);border-bottom:3px solid transparent;font-family:inherit;
+}
+nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
+main{padding:16px;max-width:820px;margin:0 auto;padding-bottom:120px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.card h2{font-size:16px;margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid var(--line)}
+label{display:block;font-size:14px;font-weight:600;color:var(--sub);margin:12px 0 5px}
+label:first-child{margin-top:0}
+input[type=text],input[type=tel],select,textarea{
+  width:100%;padding:12px;font-size:17px;border:1px solid var(--line);
+  border-radius:8px;background:#fff;font-family:inherit;color:var(--text);
+}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+.req::after{content:"必須";font-size:11px;background:#fdecea;color:var(--warn);padding:2px 6px;border-radius:4px;margin-left:6px;font-weight:600}
+.btn{
+  display:inline-block;padding:14px 22px;font-size:17px;font-weight:700;border:0;
+  border-radius:10px;background:var(--accent);color:#fff;font-family:inherit;cursor:pointer;
+}
+.btn:active{background:var(--accent-d)}
+.btn.sub{background:#e9edf3;color:var(--text)}
+.btn.ok{background:var(--ok)}
+.btn.danger{background:var(--warn)}
+.btn.sm{padding:9px 14px;font-size:14px;border-radius:8px}
+.btn.wide{display:block;width:100%;margin-top:8px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1;min-width:0}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.chip{padding:8px 12px;font-size:14px;background:#eef3fa;border:1px solid #cfdcee;border-radius:99px;color:var(--accent);font-family:inherit}
+.chip:active{background:#dbe7f7}
+.vendor{border-radius:12px;overflow:hidden;border:1px solid var(--line);margin-bottom:16px;background:#fff}
+.vendor>.vh{padding:10px 14px;color:#fff;font-weight:700;font-size:16px}
+.vendor[data-v=isagoda]>.vh{background:var(--v-isagoda)}
+.vendor[data-v=tamaru]>.vh{background:var(--v-tamaru)}
+.vendor[data-v=school]>.vh{background:var(--v-school)}
+.item{padding:12px 14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.item:first-of-type{border-top:0}
+.item .nm{flex:1 1 100%;font-weight:600}
+.item .pr{font-size:14px;color:var(--sub);font-weight:400;margin-left:8px}
+.item select{flex:1 1 140px;max-width:200px}
+.qty{display:flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.qty button{width:46px;height:46px;border:0;background:#eef1f6;font-size:22px;font-weight:700;color:var(--accent);font-family:inherit}
+.qty button:active{background:#dde3ec}
+.qty span{width:44px;text-align:center;font-size:18px;font-weight:700}
+.item.sel{background:#f3f8ff}
+.total{
+  position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);
+  padding:12px 16px;display:flex;align-items:center;gap:12px;z-index:18;
+  box-shadow:0 -2px 12px rgba(0,0,0,.06);
+}
+.total .t{flex:1;font-size:14px;color:var(--sub)}
+.total .t b{display:block;font-size:24px;color:var(--text)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{border:1px solid var(--line);padding:7px 8px;text-align:left}
+th{background:#f0f3f8;font-weight:600;font-size:13px}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+.empty{text-align:center;color:var(--sub);padding:40px 10px;font-size:15px}
+.note{font-size:13px;color:var(--sub);margin-top:6px}
+.hide{display:none!important}
+.ovl{position:fixed;inset:0;background:rgba(20,25,35,.55);z-index:40;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:20px}
+.ovl>div{background:#fff;border-radius:14px;max-width:760px;width:100%;padding:20px;margin:auto}
+.done{text-align:center;padding:30px 10px}
+.done .num{font-size:40px;font-weight:800;color:var(--accent);letter-spacing:2px;margin:12px 0}
+.mrow{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.mrow input[type=text]{flex:2 1 120px;width:auto}
+.mrow input.p{flex:0 0 90px;text-align:right}
+.mrow select{flex:0 0 130px;width:auto}
+.mrow .sz{flex:3 1 180px;width:auto}
+#printArea{display:none}
+@media print{
+  body{background:#fff}
+  header,nav,main,.total,.ovl{display:none!important}
+  #printArea{display:block!important}
+  .sheet{
+    width:190mm;min-height:277mm;padding:0;page-break-after:always;
+    font-size:11pt;color:#000;
+  }
+  .sheet:last-child{page-break-after:auto}
+}
+.sheet{background:#fff;color:#000;padding:10mm;margin:0 auto 20px;width:210mm;box-sizing:border-box}
+.sheet h3{text-align:center;font-size:16pt;margin:0 0 4mm;letter-spacing:4px}
+.sheet .meta{display:flex;justify-content:space-between;font-size:9pt;margin-bottom:3mm}
+.sheet table{font-size:10pt}
+.sheet th,.sheet td{border:1px solid #000;padding:3px 5px}
+.sheet .vt{background:#eee;font-weight:700}
+.sheet .kv{width:100%;margin-bottom:4mm}
+.sheet .kv th{width:26mm;background:#f2f2f2}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>入学説明会 用品申込</h1>
+  <span class="dev" id="devLabel">端末 —</span>
+</header>
+
+<nav>
+  <button id="tabEntry" class="on" onclick="go('entry')">受付</button>
+  <button id="tabList" onclick="go('list')">一覧・出力</button>
+  <button id="tabSet" onclick="go('set')">設定</button>
+</nav>
+
+<main>
+
+<!-- ============ 受付 ============ -->
+<section id="pgEntry">
+  <div class="card">
+    <h2>お申込者の情報</h2>
+    <label class="req">児童生徒氏名</label>
+    <input type="text" id="fStudent" placeholder="例）山田 太郎">
+    <label class="req">ふりがな</label>
+    <input type="text" id="fKana" placeholder="例）やまだ たろう">
+    <label class="req">保護者氏名</label>
+    <input type="text" id="fGuardian" placeholder="例）山田 花子">
+    <label>郵便番号</label>
+    <input type="tel" id="fZip" placeholder="例）123-4567" style="max-width:200px">
+    <label class="req">住所</label>
+    <div class="chips" id="addrChips"></div>
+    <input type="text" id="fAddr" placeholder="例）○○市○○町1-2-3" style="margin-top:6px">
+    <label class="req">連絡先（電話）</label>
+    <input type="tel" id="fTel" placeholder="例）090-1234-5678">
+  </div>
+
+  <div id="itemsArea"></div>
+
+  <div class="card">
+    <h2>備考（任意）</h2>
+    <textarea id="fMemo" rows="2" placeholder="サイズの相談など"></textarea>
+  </div>
+</section>
+
+<!-- ============ 一覧 ============ -->
+<section id="pgList" class="hide">
+  <div class="card">
+    <h2>受付一覧</h2>
+    <div id="listArea"></div>
+  </div>
+  <div class="card">
+    <h2>出力</h2>
+    <button class="btn wide" onclick="printSheets()">申込用紙を印刷（1人1枚）</button>
+    <button class="btn wide sub" onclick="printSummary()">業者別 集計表を印刷</button>
+    <button class="btn wide sub" onclick="exportCsv()">CSVで書き出す（Excel・Teams用）</button>
+    <p class="note">印刷は Safari の「共有 → プリント」でも、PC のブラウザからでも同じ結果になります。</p>
+  </div>
+  <div class="card">
+    <h2>他の iPad のデータを取り込む</h2>
+    <button class="btn wide sub" onclick="exportJson()">このiPadのデータを書き出す（AirDrop用）</button>
+    <label style="margin-top:14px">書き出したファイルを読み込む</label>
+    <input type="file" id="fImport" accept=".json" onchange="importJson(this)">
+    <p class="note">同じ受付番号のデータは重複せず、自動でまとめられます。</p>
+  </div>
+</section>
+
+<!-- ============ 設定 ============ -->
+<section id="pgSet" class="hide">
+  <div class="card">
+    <h2>この iPad の設定</h2>
+    <label>端末番号（1号機・2号機…）</label>
+    <select id="sDev" onchange="saveDev()">
+      <option value="1">1号機</option><option value="2">2号機</option>
+      <option value="3">3号機</option><option value="4">4号機</option>
+    </select>
+    <p class="note">受付番号が重ならないよう、iPad ごとに違う番号にしてください。</p>
+    <label>住所の定型（カンマ区切り・ワンタップ入力用）</label>
+    <input type="text" id="sAddr" placeholder="○○市○○町,○○市△△町" onchange="saveAddr()">
+  </div>
+
+  <div class="card">
+    <h2>商品マスタ</h2>
+    <p class="note" style="margin:0 0 10px">サイズは「/」で区切って入力（例：S/M/L/LL）。空欄ならサイズ選択なしになります。</p>
+    <div id="masterArea"></div>
+    <button class="btn sm sub" style="margin-top:12px" onclick="addItem()">＋ 品目を追加</button>
+    <button class="btn sm" style="margin-top:12px" onclick="saveMaster()">保存</button>
+  </div>
+
+  <div class="card">
+    <h2>データ管理</h2>
+    <button class="btn wide sub" onclick="exportJson()">全データを書き出す（バックアップ）</button>
+    <button class="btn wide danger" onclick="clearAll()">受付データを全部消す</button>
+    <p class="note">説明会が終わり、印刷とバックアップが済んでから消してください。</p>
+  </div>
+</section>
+
+</main>
+
+<div class="total hide" id="totalBar">
+  <div class="t">合計金額（概算）<b id="totalYen">0円</b></div>
+  <button class="btn" onclick="confirmEntry()">確認へ</button>
+</div>
+
+<div id="printArea"></div>
+
+<script>
+/* ===================== データ ===================== */
+const VENDORS=[
+  {id:'isagoda',name:'いさごだ'},
+  {id:'tamaru', name:'田丸スポーツ'},
+  {id:'school', name:'学校'}
+];
+const K_MASTER='nm_master', K_ORDERS='nm_orders', K_DEV='nm_dev', K_ADDR='nm_addr', K_SEQ='nm_seq';
+
+/* 仮データ。設定画面から自由に書き換えられます */
+const DEFAULT_MASTER=[
+  {v:'isagoda',n:'制服 上着',      s:'S/M/L/LL', p:22000},
+  {v:'isagoda',n:'制服 スラックス', s:'70/75/80/85', p:14000},
+  {v:'isagoda',n:'制服 スカート',   s:'S/M/L/LL', p:14000},
+  {v:'isagoda',n:'ワイシャツ',     s:'S/M/L/LL', p:3500},
+  {v:'tamaru', n:'ジャージ 上',    s:'S/M/L/LL/3L', p:6800},
+  {v:'tamaru', n:'ジャージ 下',    s:'S/M/L/LL/3L', p:5800},
+  {v:'tamaru', n:'体操服 半袖',    s:'S/M/L/LL', p:2800},
+  {v:'tamaru', n:'作業着 上下',    s:'S/M/L/LL', p:9800},
+  {v:'school', n:'制服ボタン（予備）', s:'', p:200},
+  {v:'school', n:'台布',            s:'', p:500}
+];
+
+let master = load(K_MASTER, DEFAULT_MASTER);
+let orders = load(K_ORDERS, []);
+let devNo  = load(K_DEV, '1');
+let addrPresets = load(K_ADDR, []);
+let seq    = load(K_SEQ, 0);
+let cart   = {};   // itemIndex -> {size, qty}
+
+function load(k,d){ try{const v=localStorage.getItem(k); return v?JSON.parse(v):d;}catch(e){return d;} }
+function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+function yen(n){ return n.toLocaleString('ja-JP')+'円'; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function vName(id){ const v=VENDORS.find(x=>x.id===id); return v?v.name:id; }
+
+/* ===================== 画面切替 ===================== */
+function go(p){
+  ['entry','list','set'].forEach(x=>{
+    document.getElementById('pg'+x[0].toUpperCase()+x.slice(1)).classList.toggle('hide', x!==p);
+    document.getElementById('tab'+x[0].toUpperCase()+x.slice(1)).classList.toggle('on', x===p);
+  });
+  document.getElementById('totalBar').classList.toggle('hide', p!=='entry');
+  if(p==='list') renderList();
+  if(p==='set')  renderMaster();
+  window.scrollTo(0,0);
+}
+
+/* ===================== 受付画面 ===================== */
+function renderItems(){
+  const wrap=document.getElementById('itemsArea');
+  wrap.innerHTML = VENDORS.map(v=>{
+    const rows = master.map((m,i)=>[m,i]).filter(([m])=>m.v===v.id);
+    if(!rows.length) return '';
+    return `<div class="vendor" data-v="${v.id}">
+      <div class="vh">${esc(v.name)}</div>
+      ${rows.map(([m,i])=>{
+        const c=cart[i]||{size:'',qty:0};
+        const sizes=(m.s||'').split('/').map(s=>s.trim()).filter(Boolean);
+        return `<div class="item ${c.qty>0?'sel':''}" id="it${i}">
+          <div class="nm">${esc(m.n)}<span class="pr">${yen(m.p)}</span></div>
+          ${sizes.length?`<select onchange="setSize(${i},this.value)">
+              <option value="">サイズを選ぶ</option>
+              ${sizes.map(s=>`<option ${c.size===s?'selected':''}>${esc(s)}</option>`).join('')}
+            </select>`:'<div style="flex:1 1 140px"></div>'}
+          <div class="qty">
+            <button onclick="addQty(${i},-1)">−</button>
+            <span id="q${i}">${c.qty}</span>
+            <button onclick="addQty(${i},1)">＋</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+function setSize(i,v){ cart[i]=cart[i]||{size:'',qty:0}; cart[i].size=v; if(cart[i].qty===0) addQty(i,1); }
+function addQty(i,d){
+  cart[i]=cart[i]||{size:'',qty:0};
+  cart[i].qty=Math.max(0, cart[i].qty+d);
+  document.getElementById('q'+i).textContent=cart[i].qty;
+  document.getElementById('it'+i).classList.toggle('sel', cart[i].qty>0);
+  calcTotal();
+}
+function calcTotal(){
+  let t=0;
+  for(const i in cart) t += (master[i]?master[i].p:0) * cart[i].qty;
+  document.getElementById('totalYen').textContent = yen(t);
+  return t;
+}
+function renderAddrChips(){
+  document.getElementById('addrChips').innerHTML =
+    addrPresets.map(a=>`<button class="chip" onclick="putAddr('${esc(a)}')">${esc(a)}</button>`).join('');
+}
+function putAddr(a){
+  const el=document.getElementById('fAddr');
+  if(!el.value.startsWith(a)) el.value = a + el.value;
+  el.focus();
+}
+
+/* ===================== 確認・保存 ===================== */
+function confirmEntry(){
+  const d={
+    student:v('fStudent'), kana:v('fKana'), guardian:v('fGuardian'),
+    zip:v('fZip'), addr:v('fAddr'), tel:v('fTel'), memo:v('fMemo')
+  };
+  const miss=[];
+  if(!d.student)  miss.push('児童生徒氏名');
+  if(!d.kana)     miss.push('ふりがな');
+  if(!d.guardian) miss.push('保護者氏名');
+  if(!d.addr)     miss.push('住所');
+  if(!d.tel)      miss.push('連絡先');
+  if(miss.length){ alert('未入力の項目があります：\n・'+miss.join('\n・')); return; }
+
+  const lines=[];
+  for(const i in cart){
+    if(cart[i].qty<=0) continue;
+    const m=master[i];
+    const sizes=(m.s||'').split('/').map(s=>s.trim()).filter(Boolean);
+    if(sizes.length && !cart[i].size){ alert(`「${m.n}」のサイズが選ばれていません。`); return; }
+    lines.push({v:m.v, n:m.n, size:cart[i].size, p:m.p, qty:cart[i].qty});
+  }
+  if(!lines.length){ alert('商品が1つも選ばれていません。'); return; }
+
+  const total=lines.reduce((a,l)=>a+l.p*l.qty,0);
+  const html=`<div>
+    <h2 style="margin:0 0 14px">この内容で申し込みます</h2>
+    <table style="margin-bottom:14px">
+      <tr><th>児童生徒</th><td>${esc(d.student)}（${esc(d.kana)}）</td></tr>
+      <tr><th>保護者</th><td>${esc(d.guardian)}</td></tr>
+      <tr><th>住所</th><td>${esc(d.zip)} ${esc(d.addr)}</td></tr>
+      <tr><th>連絡先</th><td>${esc(d.tel)}</td></tr>
+    </table>
+    <table style="margin-bottom:14px">
+      <tr><th>販売元</th><th>品名</th><th>サイズ</th><th>数量</th><th>金額</th></tr>
+      ${lines.map(l=>`<tr><td>${esc(vName(l.v))}</td><td>${esc(l.n)}</td><td>${esc(l.size||'—')}</td>
+        <td class="n">${l.qty}</td><td class="n">${yen(l.p*l.qty)}</td></tr>`).join('')}
+      <tr><th colspan="4">合計</th><th class="n">${yen(total)}</th></tr>
+    </table>
+    <p class="note">お支払いは、後日それぞれの販売元で商品を受け取る際になります。</p>
+    <div class="row" style="margin-top:16px">
+      <button class="btn sub" onclick="closeOvl()">戻って修正</button>
+      <button class="btn ok" onclick="submitEntry()">この内容で申し込む</button>
+    </div>
+  </div>`;
+  openOvl(html);
+  window._pending={d,lines,total};
+}
+function v(id){ return document.getElementById(id).value.trim(); }
+
+function submitEntry(){
+  const {d,lines,total}=window._pending;
+  seq++; save(K_SEQ,seq);
+  const no = devNo+'-'+String(seq).padStart(3,'0');
+  orders.push({no, dev:devNo, at:new Date().toISOString(), ...d, lines, total});
+  save(K_ORDERS, orders);
+  openOvl(`<div class="done">
+    <div style="font-size:15px;color:var(--sub)">受付が完了しました</div>
+    <div class="num">${no}</div>
+    <div style="font-size:15px">${esc(d.student)} 様</div>
+    <div style="margin-top:6px;font-size:15px;color:var(--sub)">合計 ${yen(total)}（概算）</div>
+    <button class="btn wide ok" style="margin-top:24px" onclick="resetForm()">次の方へ</button>
+  </div>`);
+}
+function resetForm(){
+  ['fStudent','fKana','fGuardian','fZip','fAddr','fTel','fMemo'].forEach(id=>document.getElementById(id).value='');
+  cart={}; renderItems(); calcTotal(); closeOvl(); window.scrollTo(0,0);
+}
+
+/* ===================== オーバーレイ ===================== */
+function openOvl(html){
+  let o=document.getElementById('ovl');
+  if(!o){ o=document.createElement('div'); o.id='ovl'; o.className='ovl'; document.body.appendChild(o); }
+  o.innerHTML=html; o.classList.remove('hide');
+}
+function closeOvl(){ const o=document.getElementById('ovl'); if(o) o.remove(); }
+
+/* ===================== 一覧 ===================== */
+function renderList(){
+  const a=document.getElementById('listArea');
+  if(!orders.length){ a.innerHTML='<div class="empty">まだ受付データがありません。</div>'; return; }
+  a.innerHTML=`<table>
+    <tr><th>受付番号</th><th>児童生徒</th><th>保護者</th><th>点数</th><th>合計</th><th></th></tr>
+    ${orders.map((o,i)=>`<tr>
+      <td>${esc(o.no)}</td><td>${esc(o.student)}</td><td>${esc(o.guardian)}</td>
+      <td class="n">${o.lines.reduce((s,l)=>s+l.qty,0)}</td>
+      <td class="n">${yen(o.total)}</td>
+      <td><button class="btn sm sub" onclick="delOrder(${i})">削除</button></td>
+    </tr>`).join('')}
+    <tr><th colspan="4">合計 ${orders.length}件</th>
+        <th class="n">${yen(orders.reduce((s,o)=>s+o.total,0))}</th><th></th></tr>
+  </table>`;
+}
+function delOrder(i){
+  if(!confirm(`${orders[i].no} ${orders[i].student} さんの申込を削除します。よろしいですか？`)) return;
+  orders.splice(i,1); save(K_ORDERS,orders); renderList();
+}
+
+/* ===================== 印刷 ===================== */
+function sheetHtml(o){
+  const rows = VENDORS.map(v=>{
+    const ls=o.lines.filter(l=>l.v===v.id);
+    if(!ls.length) return `<tr><td class="vt">${esc(v.name)}</td><td colspan="4" style="color:#666">申込なし</td></tr>`;
+    return ls.map((l,k)=>`<tr>
+      ${k===0?`<td class="vt" rowspan="${ls.length}">${esc(v.name)}</td>`:''}
+      <td>${esc(l.n)}</td><td style="text-align:center">${esc(l.size||'—')}</td>
+      <td style="text-align:right">${l.qty}</td><td style="text-align:right">${yen(l.p*l.qty)}</td>
+    </tr>`).join('');
+  }).join('');
+  const dt=new Date(o.at);
+  return `<div class="sheet">
+    <h3>入学用品 申込書</h3>
+    <div class="meta"><span>受付番号：${esc(o.no)}</span>
+      <span>受付日：${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日</span></div>
+    <table class="kv">
+      <tr><th>児童生徒氏名</th><td colspan="3">${esc(o.student)}</td></tr>
+      <tr><th>ふりがな</th><td colspan="3">${esc(o.kana)}</td></tr>
+      <tr><th>保護者氏名</th><td colspan="3">${esc(o.guardian)}</td></tr>
+      <tr><th>住所</th><td colspan="3">${esc(o.zip)} ${esc(o.addr)}</td></tr>
+      <tr><th>連絡先</th><td colspan="3">${esc(o.tel)}</td></tr>
+    </table>
+    <table>
+      <tr><th style="width:26mm">販売元</th><th>品名</th><th style="width:20mm">サイズ</th>
+          <th style="width:15mm">数量</th><th style="width:25mm">金額</th></tr>
+      ${rows}
+      <tr><th colspan="4" style="text-align:right">合計</th>
+          <th style="text-align:right">${yen(o.total)}</th></tr>
+    </table>
+    <p style="font-size:9pt;margin-top:4mm">
+      ※ お支払いは、後日それぞれの販売元で商品をお受け取りの際にお願いいたします。<br>
+      ※ 金額は申込時点のものです。${esc(o.memo?'備考：'+o.memo:'')}
+    </p>
+  </div>`;
+}
+function printSheets(){
+  if(!orders.length){ alert('受付データがありません。'); return; }
+  doPrint(orders.map(sheetHtml).join(''));
+}
+function printSummary(){
+  if(!orders.length){ alert('受付データがありません。'); return; }
+  const html = VENDORS.map(v=>{
+    const agg={};
+    orders.forEach(o=>o.lines.filter(l=>l.v===v.id).forEach(l=>{
+      const k=l.n+' '+(l.size||'');
+      agg[k]=agg[k]||{n:l.n,size:l.size,p:l.p,qty:0};
+      agg[k].qty+=l.qty;
+    }));
+    const a=Object.values(agg);
+    const tot=a.reduce((s,x)=>s+x.p*x.qty,0);
+    return `<div class="sheet"><h3>${esc(v.name)} 御中 注文集計表</h3>
+      <div class="meta"><span>申込者数：${orders.length}名</span>
+        <span>作成日：${new Date().toLocaleDateString('ja-JP')}</span></div>
+      <table><tr><th>品名</th><th style="width:24mm">サイズ</th><th style="width:18mm">数量</th>
+        <th style="width:24mm">単価</th><th style="width:28mm">金額</th></tr>
+      ${a.length?a.map(x=>`<tr><td>${esc(x.n)}</td><td style="text-align:center">${esc(x.size||'—')}</td>
+        <td style="text-align:right">${x.qty}</td><td style="text-align:right">${yen(x.p)}</td>
+        <td style="text-align:right">${yen(x.p*x.qty)}</td></tr>`).join('')
+        :'<tr><td colspan="5" style="color:#666">申込なし</td></tr>'}
+      <tr><th colspan="4" style="text-align:right">合計</th><th style="text-align:right">${yen(tot)}</th></tr>
+      </table></div>`;
+  }).join('');
+  doPrint(html);
+}
+function doPrint(html){
+  document.getElementById('printArea').innerHTML=html;
+  setTimeout(()=>window.print(), 100);
+}
+
+/* ===================== 入出力 ===================== */
+function exportCsv(){
+  if(!orders.length){ alert('受付データがありません。'); return; }
+  const head=['受付番号','児童生徒氏名','ふりがな','保護者氏名','郵便番号','住所','連絡先','販売元','品名','サイズ','単価','数量','金額','備考'];
+  const rows=[head];
+  orders.forEach(o=>o.lines.forEach(l=>rows.push([
+    o.no,o.student,o.kana,o.guardian,o.zip,o.addr,o.tel,
+    vName(l.v),l.n,l.size,l.p,l.qty,l.p*l.qty,o.memo||''
+  ])));
+  const csv='﻿'+rows.map(r=>r.map(c=>`"${String(c==null?'':c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  dl(csv,'text/csv','申込一覧');
+}
+function exportJson(){
+  dl(JSON.stringify({master,orders,dev:devNo},null,1),'application/json','申込データ_'+devNo+'号機');
+}
+function dl(text,type,base){
+  const d=new Date(), p=n=>String(n).padStart(2,'0');
+  const name=`${base}_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}.${type==='text/csv'?'csv':'json'}`;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([text],{type:type+';charset=utf-8'}));
+  a.download=name; document.body.appendChild(a); a.click(); a.remove();
+}
+function importJson(el){
+  const f=el.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const j=JSON.parse(r.result);
+      if(!Array.isArray(j.orders)) throw 0;
+      const have=new Set(orders.map(o=>o.no));
+      let add=0;
+      j.orders.forEach(o=>{ if(!have.has(o.no)){ orders.push(o); add++; } });
+      orders.sort((a,b)=>a.no.localeCompare(b.no));
+      save(K_ORDERS,orders); renderList();
+      alert(`${add}件を取り込みました。（重複 ${j.orders.length-add}件はスキップ）`);
+    }catch(e){ alert('読み込めませんでした。書き出したJSONファイルを選んでください。'); }
+    el.value='';
+  };
+  r.readAsText(f);
+}
+function clearAll(){
+  if(!confirm('受付データを全部消します。書き出し（バックアップ）は済んでいますか？')) return;
+  if(!confirm('本当に削除します。元に戻せません。')) return;
+  orders=[]; seq=0; save(K_ORDERS,orders); save(K_SEQ,seq); renderList();
+  alert('削除しました。');
+}
+
+/* ===================== 設定 ===================== */
+function saveDev(){
+  devNo=document.getElementById('sDev').value; save(K_DEV,devNo);
+  document.getElementById('devLabel').textContent='端末 '+devNo+'号機';
+}
+function saveAddr(){
+  addrPresets=document.getElementById('sAddr').value.split(',').map(s=>s.trim()).filter(Boolean);
+  save(K_ADDR,addrPresets); renderAddrChips();
+}
+function renderMaster(){
+  document.getElementById('masterArea').innerHTML = master.map((m,i)=>`
+    <div class="mrow">
+      <select data-f="v" data-i="${i}">${VENDORS.map(v=>`<option value="${v.id}" ${m.v===v.id?'selected':''}>${esc(v.name)}</option>`).join('')}</select>
+      <input type="text" data-f="n" data-i="${i}" value="${esc(m.n)}" placeholder="品名">
+      <input type="text" class="sz" data-f="s" data-i="${i}" value="${esc(m.s)}" placeholder="S/M/L">
+      <input type="text" class="p" data-f="p" data-i="${i}" value="${m.p}" placeholder="単価">
+      <button class="btn sm sub" onclick="delItem(${i})">×</button>
+    </div>`).join('');
+}
+function collectMaster(){
+  document.querySelectorAll('#masterArea [data-f]').forEach(el=>{
+    const i=+el.dataset.i, f=el.dataset.f;
+    master[i][f] = (f==='p') ? (parseInt(el.value,10)||0) : el.value;
+  });
+}
+function addItem(){ collectMaster(); master.push({v:'isagoda',n:'',s:'',p:0}); renderMaster(); }
+function delItem(i){ collectMaster(); master.splice(i,1); renderMaster(); }
+function saveMaster(){
+  collectMaster();
+  master=master.filter(m=>m.n.trim());
+  save(K_MASTER,master); renderMaster(); cart={}; renderItems(); calcTotal();
+  alert('商品マスタを保存しました。');
+}
+
+/* ===================== 起動 ===================== */
+document.getElementById('sDev').value=devNo;
+document.getElementById('sAddr').value=addrPresets.join(',');
+document.getElementById('devLabel').textContent='端末 '+devNo+'号機';
+renderAddrChips(); renderItems(); calcTotal();
+</script>
+</body>
+</html>
