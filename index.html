@@ -183,9 +183,9 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
   <div class="card">
     <h2>お申込者の情報</h2>
-    <label class="req">学部</label>
+    <label class="req">入学する学部</label>
     <div class="chips" id="deptSel"></div>
-    <p class="note" id="deptNote">学部を選ぶと、その学部で購入するものが下に出ます。</p>
+    <p class="note" id="deptNote">入学する学部を選ぶと、その学部で購入するものが下に出ます。</p>
     <label class="req">生徒氏名</label>
     <input type="text" id="fStudent" placeholder="例）山田 太郎">
     <label class="req">ふりがな</label>
@@ -412,7 +412,7 @@ function renderDept(){
   document.getElementById('deptSel').innerHTML =
     DEPTS.map(d=>`<button class="chip big ${dept===d?'on':''}" onclick="setDept('${d}')">${d}</button>`).join('');
   document.getElementById('deptNote').textContent =
-    dept ? `${dept}で購入するものが下に出ています。` : '学部を選ぶと、その学部で購入するものが下に出ます。';
+    dept ? `${dept}で購入するものが下に出ています。` : '入学する学部を選ぶと、その学部で購入するものが下に出ます。';
 }
 function setDept(d){
   if(dept===d) return;
@@ -424,7 +424,7 @@ function setDept(d){
 function renderItems(){
   if(!dept){
     document.getElementById('itemsArea').innerHTML =
-      '<div class="card"><div class="empty">まず上で<b>学部</b>を選んでください。</div></div>';
+      '<div class="card"><div class="empty">まず上で<b>入学する学部</b>を選んでください。</div></div>';
     return;
   }
   document.getElementById('itemsArea').innerHTML = groupsFor(dept).map(G=>{
@@ -573,7 +573,7 @@ function confirmEntry(){
     zip:v('fZip'), addr:v('fAddr'), tel:v('fTel'), memo:v('fMemo')
   };
   const miss=[];
-  if(!d.dept)     miss.push('学部');
+  if(!d.dept)     miss.push('入学する学部');
   if(!d.student)  miss.push('生徒氏名');
   if(!d.kana)     miss.push('ふりがな');
   if(!d.guardian) miss.push('保護者氏名');
@@ -599,7 +599,7 @@ function confirmEntry(){
   openOvl(`<div>
     <h2 style="margin:0 0 14px">${ed?`受付番号 ${esc(orders[editing].no)} を次の内容に訂正します`:'この内容で申し込みます'}</h2>
     <table style="margin-bottom:14px">
-      <tr><th>学部</th><td>${esc(d.dept)}</td></tr>
+      <tr><th>入学する学部</th><td>${esc(d.dept)}</td></tr>
       <tr><th>生徒氏名</th><td>${esc(d.student)}（${esc(d.kana)}）</td></tr>
       <tr><th>保護者氏名</th><td>${esc(d.guardian)}</td></tr>
       <tr><th>住所</th><td>${esc(d.zip)} ${esc(d.addr)}</td></tr>
@@ -775,7 +775,7 @@ function sheetHtml(o){
           <td class="r">${o.total.toLocaleString('ja-JP')}</td><td>円</td></tr>
     </table>
     <table class="kv">
-      <tr><th>学部</th><td>${esc(o.dept||'')}</td></tr>
+      <tr><th>入学する学部</th><td>${esc(o.dept||'')}</td></tr>
       <tr><th>生徒氏名</th><td>${esc(o.student)}　（${esc(o.kana)}）</td></tr>
       <tr><th>保護者氏名</th><td>${esc(o.guardian)}</td></tr>
       <tr><th>住所</th><td>${esc(o.zip)}　${esc(o.addr)}</td></tr>
