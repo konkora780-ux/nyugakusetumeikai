@@ -71,6 +71,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);border-c
 .qty button:active{background:#dde3ec}
 .qty span{width:44px;text-align:center;font-size:18px;font-weight:700}
 .item.sel{background:#f3f8ff}
+.item .pr.unset{color:var(--warn);font-weight:700}
+.memoBox{flex:1 1 100%;margin-top:4px}
+.memoBox textarea{font-size:16px;padding:10px;background:#fffdf5;border-color:#e0cf94}
 .total{
   position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);
   padding:12px 16px;display:flex;align-items:center;gap:12px;z-index:18;
@@ -98,6 +101,8 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 .mrow input.p{flex:0 0 90px;text-align:right}
 .mrow select{flex:0 0 130px;width:auto}
 .mrow .sz{flex:3 1 180px;width:auto}
+.mrow .ck{display:flex;align-items:center;gap:4px;margin:0;font-size:13px;white-space:nowrap;flex:0 0 auto}
+.mrow .ck input{width:20px;height:20px}
 #printArea{display:none}
 @media print{
   body{background:#fff}
@@ -207,10 +212,14 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
   <div class="card">
     <h2>商品マスタ</h2>
-    <p class="note" style="margin:0 0 10px">サイズは「/」で区切って入力（例：S/M/L/LL）。空欄ならサイズ選択なしになります。</p>
+    <p class="note" style="margin:0 0 10px">
+      サイズは「/」で区切って入力（例：S/M/L/LL）。空欄ならサイズ選択なしになります。<br>
+      <b>採寸欄</b>にチェックを入れると、その品目を選んだときに「採寸・お直しの内容」の記入欄が出ます（制服・作業着用）。
+    </p>
     <div id="masterArea"></div>
     <button class="btn sm sub" style="margin-top:12px" onclick="addItem()">＋ 品目を追加</button>
     <button class="btn sm" style="margin-top:12px" onclick="saveMaster()">保存</button>
+    <button class="btn sm sub" style="margin-top:12px" onclick="resetMaster()">初期状態に戻す</button>
   </div>
 
   <div class="card">
@@ -249,20 +258,25 @@ const VENDORS=[
 const K_MASTER='nm_master', K_ORDERS='nm_orders', K_DEV='nm_dev', K_ADDR='nm_addr', K_SEQ='nm_seq';
 
 /* 仮データ。設定画面から自由に書き換えられます */
+/* m:true = 採寸の備考欄を出す。単価は設定タブで入力してください */
 const DEFAULT_MASTER=[
-  {v:'isagoda',n:'制服 上着',      s:'S/M/L/LL', p:22000},
-  {v:'isagoda',n:'制服 スラックス', s:'70/75/80/85', p:14000},
-  {v:'isagoda',n:'制服 スカート',   s:'S/M/L/LL', p:14000},
-  {v:'isagoda',n:'ワイシャツ',     s:'S/M/L/LL', p:3500},
-  {v:'tamaru', n:'ジャージ 上',    s:'S/M/L/LL/3L', p:6800},
-  {v:'tamaru', n:'ジャージ 下',    s:'S/M/L/LL/3L', p:5800},
-  {v:'tamaru', n:'体操服 半袖',    s:'S/M/L/LL', p:2800},
-  {v:'isagoda',n:'作業着 上下',    s:'S/M/L/LL', p:9800},
-  {v:'school', n:'制服ボタン（予備）', s:'', p:200},
-  {v:'school', n:'台布',            s:'', p:500}
+  {v:'isagoda',n:'制服 上着',        s:'S/M/L/LL',     p:0, m:true},
+  {v:'isagoda',n:'制服 スラックス',   s:'S/M/L/LL',     p:0, m:true},
+  {v:'isagoda',n:'制服 スカート',     s:'S/M/L/LL',     p:0, m:true},
+  {v:'isagoda',n:'ワイシャツ',       s:'S/M/L/LL',     p:0},
+  {v:'isagoda',n:'作業着 上',        s:'S/M/L/LL',     p:0, m:true},
+  {v:'isagoda',n:'作業着 下',        s:'S/M/L/LL',     p:0, m:true},
+  {v:'tamaru', n:'ジャージ 上',      s:'S/M/L/LL/3L',  p:0},
+  {v:'tamaru', n:'ジャージ 下',      s:'S/M/L/LL/3L',  p:0},
+  {v:'tamaru', n:'ハーフパンツ',     s:'S/M/L/LL/3L',  p:0},
+  {v:'tamaru', n:'Tシャツ',          s:'S/M/L/LL/3L',  p:0},
+  {v:'tamaru', n:'ポロシャツ',       s:'S/M/L/LL/3L',  p:0},
+  {v:'school', n:'制服ボタン（予備）', s:'',            p:0},
+  {v:'school', n:'台布',             s:'',            p:0}
 ];
 
-let master = load(K_MASTER, DEFAULT_MASTER);
+const copy = o => JSON.parse(JSON.stringify(o));
+let master = load(K_MASTER, copy(DEFAULT_MASTER));  // 初期値を書き換えないよう複製
 let orders = load(K_ORDERS, []);
 let devNo  = load(K_DEV, '1');
 let addrPresets = load(K_ADDR, []);
@@ -300,7 +314,7 @@ function renderItems(){
         const c=cart[i]||{size:'',qty:0};
         const sizes=(m.s||'').split('/').map(s=>s.trim()).filter(Boolean);
         return `<div class="item ${c.qty>0?'sel':''}" id="it${i}">
-          <div class="nm">${esc(m.n)}<span class="pr">${yen(m.p)}</span></div>
+          <div class="nm">${esc(m.n)}<span class="pr${m.p?'':' unset'}">${m.p?yen(m.p):'単価未設定'}</span></div>
           ${sizes.length?`<select onchange="setSize(${i},this.value)">
               <option value="">サイズを選ぶ</option>
               ${sizes.map(s=>`<option ${c.size===s?'selected':''}>${esc(s)}</option>`).join('')}
@@ -310,17 +324,26 @@ function renderItems(){
             <span id="q${i}">${c.qty}</span>
             <button onclick="addQty(${i},1)">＋</button>
           </div>
+          ${m.m?`<div class="memoBox ${c.qty>0?'':'hide'}" id="mb${i}">
+            <label style="margin:0 0 4px">採寸・お直しの内容</label>
+            <textarea rows="2" id="mt${i}" oninput="setMemo(${i},this.value)"
+              placeholder="例）上着 着丈 2cm 詰め／袖丈 1.5cm 出し">${esc(c.memo||'')}</textarea>
+          </div>`:''}
         </div>`;
       }).join('')}
     </div>`;
   }).join('');
 }
-function setSize(i,v){ cart[i]=cart[i]||{size:'',qty:0}; cart[i].size=v; if(cart[i].qty===0) addQty(i,1); }
+function slot(i){ return cart[i]||(cart[i]={size:'',qty:0,memo:''}); }
+function setSize(i,v){ slot(i).size=v; if(cart[i].qty===0) addQty(i,1); }
+function setMemo(i,v){ slot(i).memo=v; }
 function addQty(i,d){
-  cart[i]=cart[i]||{size:'',qty:0};
-  cart[i].qty=Math.max(0, cart[i].qty+d);
-  document.getElementById('q'+i).textContent=cart[i].qty;
-  document.getElementById('it'+i).classList.toggle('sel', cart[i].qty>0);
+  const c=slot(i);
+  c.qty=Math.max(0, c.qty+d);
+  document.getElementById('q'+i).textContent=c.qty;
+  document.getElementById('it'+i).classList.toggle('sel', c.qty>0);
+  const mb=document.getElementById('mb'+i);
+  if(mb) mb.classList.toggle('hide', c.qty===0);
   calcTotal();
 }
 function calcTotal(){
@@ -359,7 +382,8 @@ function confirmEntry(){
     const m=master[i];
     const sizes=(m.s||'').split('/').map(s=>s.trim()).filter(Boolean);
     if(sizes.length && !cart[i].size){ alert(`「${m.n}」のサイズが選ばれていません。`); return; }
-    lines.push({v:m.v, n:m.n, size:cart[i].size, p:m.p, qty:cart[i].qty});
+    lines.push({v:m.v, n:m.n, size:cart[i].size, p:m.p, qty:cart[i].qty,
+                memo:m.m?(cart[i].memo||'').trim():''});
   }
   if(!lines.length){ alert('商品が1つも選ばれていません。'); return; }
 
@@ -375,7 +399,9 @@ function confirmEntry(){
     </table>
     <table style="margin-bottom:14px">
       <tr><th>販売元</th><th>品名</th><th>サイズ</th><th>数量</th><th>金額</th></tr>
-      ${lines.map(l=>`<tr><td>${esc(vName(l.v))}</td><td>${esc(l.n)}</td><td>${esc(l.size||'—')}</td>
+      ${lines.map(l=>`<tr><td>${esc(vName(l.v))}</td>
+        <td>${esc(l.n)}${l.memo?`<div style="font-size:13px;color:#8a6d1f">採寸：${esc(l.memo)}</div>`:''}</td>
+        <td>${esc(l.size||'—')}</td>
         <td class="n">${l.qty}</td><td class="n">${yen(l.p*l.qty)}</td></tr>`).join('')}
       <tr><th colspan="4">合計</th><th class="n">${yen(total)}</th></tr>
     </table>
@@ -439,7 +465,7 @@ function editOrder(i){
   o.lines.forEach(l=>{
     const idx=master.findIndex(m=>m.v===l.v && m.n===l.n);
     if(idx<0){ missing.push(l.n); return; }
-    cart[idx]={size:l.size, qty:l.qty};
+    cart[idx]={size:l.size, qty:l.qty, memo:l.memo||''};
   });
   renderItems(); calcTotal(); setEditUI(); go('entry');
   if(missing.length) alert('商品マスタから消えている品目があるため、読み込めませんでした：\n・'+missing.join('\n・'));
@@ -489,7 +515,8 @@ function sheetHtml(o){
     if(!ls.length) return `<tr><td class="vt">${esc(v.name)}</td><td colspan="4" style="color:#666">申込なし</td></tr>`;
     return ls.map((l,k)=>`<tr>
       ${k===0?`<td class="vt" rowspan="${ls.length}">${esc(v.name)}</td>`:''}
-      <td>${esc(l.n)}</td><td style="text-align:center">${esc(l.size||'—')}</td>
+      <td>${esc(l.n)}${l.memo?`<div style="font-size:9pt;padding-left:1em;text-indent:-1em">採寸：${esc(l.memo)}</div>`:''}</td>
+      <td style="text-align:center">${esc(l.size||'—')}</td>
       <td style="text-align:right">${l.qty}</td><td style="text-align:right">${yen(l.p*l.qty)}</td>
     </tr>`).join('');
   }).join('');
@@ -522,6 +549,20 @@ function printSheets(){
   if(!orders.length){ alert('受付データがありません。'); return; }
   doPrint(orders.map(sheetHtml).join(''));
 }
+/* 採寸指示は人ごとに違うので、集計表とは別に一覧で出す */
+function memoTable(vid){
+  const rows=[];
+  orders.forEach(o=>o.lines.forEach(l=>{
+    if(l.v===vid && l.memo) rows.push({no:o.no, name:o.student, n:l.n, size:l.size, memo:l.memo});
+  }));
+  if(!rows.length) return '';
+  return `<h4 style="font-size:12pt;margin:6mm 0 2mm">採寸・お直し 指示一覧</h4>
+    <table><tr><th style="width:20mm">受付番号</th><th style="width:34mm">児童生徒氏名</th>
+      <th style="width:30mm">品名</th><th style="width:16mm">サイズ</th><th>内容</th></tr>
+    ${rows.map(r=>`<tr><td>${esc(r.no)}</td><td>${esc(r.name)}</td><td>${esc(r.n)}</td>
+      <td style="text-align:center">${esc(r.size||'—')}</td><td>${esc(r.memo)}</td></tr>`).join('')}
+    </table>`;
+}
 function printSummary(){
   if(!orders.length){ alert('受付データがありません。'); return; }
   const html = VENDORS.map(v=>{
@@ -543,7 +584,7 @@ function printSummary(){
         <td style="text-align:right">${yen(x.p*x.qty)}</td></tr>`).join('')
         :'<tr><td colspan="5" style="color:#666">申込なし</td></tr>'}
       <tr><th colspan="4" style="text-align:right">合計</th><th style="text-align:right">${yen(tot)}</th></tr>
-      </table></div>`;
+      </table>${memoTable(v.id)}</div>`;
   }).join('');
   doPrint(html);
 }
@@ -555,11 +596,11 @@ function doPrint(html){
 /* ===================== 入出力 ===================== */
 function exportCsv(){
   if(!orders.length){ alert('受付データがありません。'); return; }
-  const head=['受付番号','児童生徒氏名','ふりがな','保護者氏名','郵便番号','住所','連絡先','販売元','品名','サイズ','単価','数量','金額','備考'];
+  const head=['受付番号','児童生徒氏名','ふりがな','保護者氏名','郵便番号','住所','連絡先','販売元','品名','サイズ','採寸・お直し','単価','数量','金額','全体備考'];
   const rows=[head];
   orders.forEach(o=>o.lines.forEach(l=>rows.push([
     o.no,o.student,o.kana,o.guardian,o.zip,o.addr,o.tel,
-    vName(l.v),l.n,l.size,l.p,l.qty,l.p*l.qty,o.memo||''
+    vName(l.v),l.n,l.size,l.memo||'',l.p,l.qty,l.p*l.qty,o.memo||''
   ])));
   const csv='﻿'+rows.map(r=>r.map(c=>`"${String(c==null?'':c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
   dl(csv,'text/csv','申込一覧');
@@ -620,17 +661,25 @@ function renderMaster(){
       <input type="text" data-f="n" data-i="${i}" value="${esc(m.n)}" placeholder="品名">
       <input type="text" class="sz" data-f="s" data-i="${i}" value="${esc(m.s)}" placeholder="S/M/L">
       <input type="text" class="p" data-f="p" data-i="${i}" value="${m.p}" placeholder="単価">
+      <label class="ck"><input type="checkbox" data-f="m" data-i="${i}" ${m.m?'checked':''}>採寸欄</label>
       <button class="btn sm sub" onclick="delItem(${i})">×</button>
     </div>`).join('');
 }
 function collectMaster(){
   document.querySelectorAll('#masterArea [data-f]').forEach(el=>{
     const i=+el.dataset.i, f=el.dataset.f;
-    master[i][f] = (f==='p') ? (parseInt(el.value,10)||0) : el.value;
+    master[i][f] = (f==='p') ? (parseInt(el.value,10)||0)
+                 : (f==='m') ? el.checked : el.value;
   });
 }
 function addItem(){ collectMaster(); master.push({v:'isagoda',n:'',s:'',p:0}); renderMaster(); }
 function delItem(i){ collectMaster(); master.splice(i,1); renderMaster(); }
+function resetMaster(){
+  if(!confirm('商品マスタを初期状態に戻します。入力した単価や品目は消えます。よろしいですか？')) return;
+  master=copy(DEFAULT_MASTER);
+  save(K_MASTER,master); renderMaster(); cart={}; renderItems(); calcTotal();
+  alert('初期状態に戻しました。単価を入力してください。');
+}
 function recalcPrices(){
   if(!orders.length){ alert('受付データがありません。'); return; }
   collectMaster();
