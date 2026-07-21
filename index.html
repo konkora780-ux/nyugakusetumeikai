@@ -85,6 +85,10 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 .empty{text-align:center;color:var(--sub);padding:40px 10px;font-size:15px}
 .note{font-size:13px;color:var(--sub);margin-top:6px}
 .hide{display:none!important}
+.card.edit{background:#fff8e6;border-color:#e8c86a}
+.gone{opacity:.5}
+.gone td{text-decoration:line-through}
+.badge{font-size:11px;background:#fdecea;color:var(--warn);padding:2px 7px;border-radius:4px;font-weight:700;margin-left:6px}
 .ovl{position:fixed;inset:0;background:rgba(20,25,35,.55);z-index:40;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:20px}
 .ovl>div{background:#fff;border-radius:14px;max-width:760px;width:100%;padding:20px;margin:auto}
 .done{text-align:center;padding:30px 10px}
@@ -132,6 +136,14 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <!-- ============ 受付 ============ -->
 <section id="pgEntry">
+  <div class="card edit hide" id="editBanner">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:180px;font-weight:700">
+        受付番号 <span id="editNo"></span> を訂正しています
+      </div>
+      <button class="btn sm sub" onclick="cancelEdit()">訂正をやめる</button>
+    </div>
+  </div>
   <div class="card">
     <h2>お申込者の情報</h2>
     <label class="req">児童生徒氏名</label>
@@ -202,6 +214,15 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
   </div>
 
   <div class="card">
+    <h2>単価を変えたとき</h2>
+    <p class="note" style="margin:0">
+      受付済みの申込には、その時点の単価がそのまま残ります（後から値段が変わっても過去の申込は変わりません）。<br>
+      入力ミスなどで、受付済みの分も今の単価に直したいときだけ、下のボタンを押してください。
+    </p>
+    <button class="btn wide sub" onclick="recalcPrices()">受付済みの金額を今の単価で計算し直す</button>
+  </div>
+
+  <div class="card">
     <h2>データ管理</h2>
     <button class="btn wide sub" onclick="exportJson()">全データを書き出す（バックアップ）</button>
     <button class="btn wide danger" onclick="clearAll()">受付データを全部消す</button>
@@ -213,7 +234,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <div class="total hide" id="totalBar">
   <div class="t">合計金額（概算）<b id="totalYen">0円</b></div>
-  <button class="btn" onclick="confirmEntry()">確認へ</button>
+  <button class="btn" id="goConfirm" onclick="confirmEntry()">確認へ</button>
 </div>
 
 <div id="printArea"></div>
@@ -236,7 +257,7 @@ const DEFAULT_MASTER=[
   {v:'tamaru', n:'ジャージ 上',    s:'S/M/L/LL/3L', p:6800},
   {v:'tamaru', n:'ジャージ 下',    s:'S/M/L/LL/3L', p:5800},
   {v:'tamaru', n:'体操服 半袖',    s:'S/M/L/LL', p:2800},
-  {v:'tamaru', n:'作業着 上下',    s:'S/M/L/LL', p:9800},
+  {v:'isagoda',n:'作業着 上下',    s:'S/M/L/LL', p:9800},
   {v:'school', n:'制服ボタン（予備）', s:'', p:200},
   {v:'school', n:'台布',            s:'', p:500}
 ];
@@ -247,6 +268,7 @@ let devNo  = load(K_DEV, '1');
 let addrPresets = load(K_ADDR, []);
 let seq    = load(K_SEQ, 0);
 let cart   = {};   // itemIndex -> {size, qty}
+let editing= null; // 訂正中の orders 内インデックス（新規受付は null）
 
 function load(k,d){ try{const v=localStorage.getItem(k); return v?JSON.parse(v):d;}catch(e){return d;} }
 function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
@@ -342,8 +364,9 @@ function confirmEntry(){
   if(!lines.length){ alert('商品が1つも選ばれていません。'); return; }
 
   const total=lines.reduce((a,l)=>a+l.p*l.qty,0);
+  const ed = editing!==null;
   const html=`<div>
-    <h2 style="margin:0 0 14px">この内容で申し込みます</h2>
+    <h2 style="margin:0 0 14px">${ed?`受付番号 ${esc(orders[editing].no)} を次の内容に訂正します`:'この内容で申し込みます'}</h2>
     <table style="margin-bottom:14px">
       <tr><th>児童生徒</th><td>${esc(d.student)}（${esc(d.kana)}）</td></tr>
       <tr><th>保護者</th><td>${esc(d.guardian)}</td></tr>
@@ -358,8 +381,8 @@ function confirmEntry(){
     </table>
     <p class="note">お支払いは、後日それぞれの販売元で商品を受け取る際になります。</p>
     <div class="row" style="margin-top:16px">
-      <button class="btn sub" onclick="closeOvl()">戻って修正</button>
-      <button class="btn ok" onclick="submitEntry()">この内容で申し込む</button>
+      <button class="btn sub" onclick="closeOvl()">戻って直す</button>
+      <button class="btn ok" onclick="submitEntry()">${ed?'この内容に訂正する':'この内容で申し込む'}</button>
     </div>
   </div>`;
   openOvl(html);
@@ -369,21 +392,61 @@ function v(id){ return document.getElementById(id).value.trim(); }
 
 function submitEntry(){
   const {d,lines,total}=window._pending;
-  seq++; save(K_SEQ,seq);
-  const no = devNo+'-'+String(seq).padStart(3,'0');
-  orders.push({no, dev:devNo, at:new Date().toISOString(), ...d, lines, total});
+  let no, msg, btn;
+  if(editing!==null){
+    const o=orders[editing];
+    no=o.no;
+    orders[editing]={...o, ...d, lines, total, fixedAt:new Date().toISOString()};
+    msg='訂正しました'; btn='一覧へ戻る';
+  }else{
+    seq++; save(K_SEQ,seq);
+    no = devNo+'-'+String(seq).padStart(3,'0');
+    orders.push({no, dev:devNo, at:new Date().toISOString(), ...d, lines, total});
+    msg='受付が完了しました'; btn='次の方へ';
+  }
   save(K_ORDERS, orders);
+  const wasEdit = editing!==null;
   openOvl(`<div class="done">
-    <div style="font-size:15px;color:var(--sub)">受付が完了しました</div>
+    <div style="font-size:15px;color:var(--sub)">${msg}</div>
     <div class="num">${no}</div>
     <div style="font-size:15px">${esc(d.student)} 様</div>
     <div style="margin-top:6px;font-size:15px;color:var(--sub)">合計 ${yen(total)}（概算）</div>
-    <button class="btn wide ok" style="margin-top:24px" onclick="resetForm()">次の方へ</button>
+    <button class="btn wide ok" style="margin-top:24px" onclick="resetForm(${wasEdit})">${btn}</button>
   </div>`);
 }
-function resetForm(){
+function resetForm(backToList){
   ['fStudent','fKana','fGuardian','fZip','fAddr','fTel','fMemo'].forEach(id=>document.getElementById(id).value='');
-  cart={}; renderItems(); calcTotal(); closeOvl(); window.scrollTo(0,0);
+  cart={}; editing=null; setEditUI();
+  renderItems(); calcTotal(); closeOvl(); window.scrollTo(0,0);
+  if(backToList) go('list');
+}
+
+/* ---- 訂正 ---- */
+function setEditUI(){
+  const on = editing!==null;
+  document.getElementById('editBanner').classList.toggle('hide', !on);
+  if(on) document.getElementById('editNo').textContent = orders[editing].no;
+  document.getElementById('goConfirm').textContent = on ? '訂正内容の確認へ' : '確認へ';
+}
+function editOrder(i){
+  const o=orders[i];
+  editing=i;
+  const set=(id,v)=>document.getElementById(id).value=v||'';
+  set('fStudent',o.student); set('fKana',o.kana); set('fGuardian',o.guardian);
+  set('fZip',o.zip); set('fAddr',o.addr); set('fTel',o.tel); set('fMemo',o.memo);
+  cart={};
+  const missing=[];
+  o.lines.forEach(l=>{
+    const idx=master.findIndex(m=>m.v===l.v && m.n===l.n);
+    if(idx<0){ missing.push(l.n); return; }
+    cart[idx]={size:l.size, qty:l.qty};
+  });
+  renderItems(); calcTotal(); setEditUI(); go('entry');
+  if(missing.length) alert('商品マスタから消えている品目があるため、読み込めませんでした：\n・'+missing.join('\n・'));
+}
+function cancelEdit(){
+  if(!confirm('訂正をやめます。変更は保存されません。よろしいですか？')) return;
+  resetForm(true);
 }
 
 /* ===================== オーバーレイ ===================== */
@@ -399,12 +462,16 @@ function renderList(){
   const a=document.getElementById('listArea');
   if(!orders.length){ a.innerHTML='<div class="empty">まだ受付データがありません。</div>'; return; }
   a.innerHTML=`<table>
-    <tr><th>受付番号</th><th>児童生徒</th><th>保護者</th><th>点数</th><th>合計</th><th></th></tr>
+    <tr><th>受付番号</th><th>児童生徒</th><th>保護者</th><th>点数</th><th>合計</th><th style="width:120px"></th></tr>
     ${orders.map((o,i)=>`<tr>
-      <td>${esc(o.no)}</td><td>${esc(o.student)}</td><td>${esc(o.guardian)}</td>
+      <td>${esc(o.no)}${o.fixedAt?'<span class="badge">訂正済</span>':''}</td>
+      <td>${esc(o.student)}</td><td>${esc(o.guardian)}</td>
       <td class="n">${o.lines.reduce((s,l)=>s+l.qty,0)}</td>
       <td class="n">${yen(o.total)}</td>
-      <td><button class="btn sm sub" onclick="delOrder(${i})">削除</button></td>
+      <td style="white-space:nowrap">
+        <button class="btn sm" onclick="editOrder(${i})">訂正</button>
+        <button class="btn sm sub" onclick="delOrder(${i})">削除</button>
+      </td>
     </tr>`).join('')}
     <tr><th colspan="4">合計 ${orders.length}件</th>
         <th class="n">${yen(orders.reduce((s,o)=>s+o.total,0))}</th><th></th></tr>
@@ -429,7 +496,7 @@ function sheetHtml(o){
   const dt=new Date(o.at);
   return `<div class="sheet">
     <h3>入学用品 申込書</h3>
-    <div class="meta"><span>受付番号：${esc(o.no)}</span>
+    <div class="meta"><span>受付番号：${esc(o.no)}${o.fixedAt?'（訂正後）':''}</span>
       <span>受付日：${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日</span></div>
     <table class="kv">
       <tr><th>児童生徒氏名</th><td colspan="3">${esc(o.student)}</td></tr>
@@ -514,12 +581,17 @@ function importJson(el){
     try{
       const j=JSON.parse(r.result);
       if(!Array.isArray(j.orders)) throw 0;
-      const have=new Set(orders.map(o=>o.no));
-      let add=0;
-      j.orders.forEach(o=>{ if(!have.has(o.no)){ orders.push(o); add++; } });
+      let add=0, upd=0, skip=0;
+      j.orders.forEach(o=>{
+        const k=orders.findIndex(x=>x.no===o.no);
+        if(k<0){ orders.push(o); add++; return; }
+        // 同じ受付番号なら、あとから訂正された方を残す
+        const mine=orders[k].fixedAt||orders[k].at||'', theirs=o.fixedAt||o.at||'';
+        if(theirs>mine){ orders[k]=o; upd++; } else skip++;
+      });
       orders.sort((a,b)=>a.no.localeCompare(b.no));
       save(K_ORDERS,orders); renderList();
-      alert(`${add}件を取り込みました。（重複 ${j.orders.length-add}件はスキップ）`);
+      alert(`取り込みました。\n新規 ${add}件 / 訂正の反映 ${upd}件 / 変更なし ${skip}件`);
     }catch(e){ alert('読み込めませんでした。書き出したJSONファイルを選んでください。'); }
     el.value='';
   };
@@ -559,6 +631,21 @@ function collectMaster(){
 }
 function addItem(){ collectMaster(); master.push({v:'isagoda',n:'',s:'',p:0}); renderMaster(); }
 function delItem(i){ collectMaster(); master.splice(i,1); renderMaster(); }
+function recalcPrices(){
+  if(!orders.length){ alert('受付データがありません。'); return; }
+  collectMaster();
+  const miss=new Set();
+  const find=l=>{ const m=master.find(x=>x.v===l.v && x.n===l.n); if(!m) miss.add(l.n); return m; };
+  const changed=orders.filter(o=>o.lines.some(l=>{const m=find(l); return m && m.p!==l.p;})).length;
+  if(!changed){ alert('金額が変わる申込はありませんでした。'); return; }
+  if(!confirm(`${changed}件の申込の金額が変わります。実行しますか？`)) return;
+  orders.forEach(o=>{
+    o.lines.forEach(l=>{ const m=master.find(x=>x.v===l.v && x.n===l.n); if(m) l.p=m.p; });
+    o.total=o.lines.reduce((s,l)=>s+l.p*l.qty,0);
+  });
+  save(K_ORDERS,orders);
+  alert(`${changed}件を計算し直しました。`+(miss.size?`\n\n※ マスタに無い品目はそのままです：\n・${[...miss].join('\n・')}`:''));
+}
 function saveMaster(){
   collectMaster();
   master=master.filter(m=>m.n.trim());
