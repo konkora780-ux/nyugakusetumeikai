@@ -128,6 +128,13 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 .pcell input[type=checkbox]{width:20px;height:20px}
 .pcell input[type=tel]{flex:1;min-width:0;padding:7px;font-size:15px;text-align:right}
 .pcell input[type=tel]:disabled{background:#eceef2;color:#aab}
+.speditor{margin-top:8px;padding:10px;background:#fff8ef;border:1px solid #ecd9bd;border-radius:8px}
+.spdept{margin-bottom:8px}
+.spdh{font-size:13px;font-weight:700;color:var(--v-tamaru);margin-bottom:4px}
+.sptbl{display:flex;flex-direction:column;gap:5px}
+.sprow{display:flex;gap:6px;align-items:center}
+.sprow input[type=text]{flex:1 1 120px;padding:7px;font-size:15px}
+.sprow input[type=tel]{flex:0 0 90px;padding:7px;font-size:15px;text-align:right}
 
 /* ============ 印刷（申込書 A4 1枚） ============ */
 #printArea{display:none}
@@ -295,8 +302,10 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 <script>
 /* ===================== 定義 ===================== */
 const SCHOOL='釜石祥雲支援学校';
-const TITLE ='制服・作業着・運動着申込書';
 const DEPTS =['小学部','中学部','高等部'];
+/* 申込書の表題は学部によって変える（元の注文票に合わせて） */
+const TITLES={小学部:'運動着申込書', 中学部:'制服・運動着申込書', 高等部:'制服・作業着・運動着申込書'};
+function titleFor(dept){ return TITLES[dept] || '制服・作業着・運動着申込書'; }
 
 const VENDORS=[
   {id:'isagoda',name:'いさごだ'},
@@ -309,21 +318,43 @@ const GROUPS=[
   {id:'f', name:'女子制服',              v:'isagoda'},
   {id:'w', name:'作業着（刺繍なし）',     v:'isagoda'},
   {id:'g', name:'運動着',                v:'tamaru'},
-  {id:'u', name:'上履き',                v:'tamaru'},
   {id:'s', name:'校章等',                v:'school'}
 ];
 /* 女子制服だけ、基本／希望者のみ で小計が分かれる */
 const SUBNAME={0:'基本', 1:'希望者のみ'};
 
-/* 単価は申込書テンプレート（学生服・作業着申込書.xlsx）より。
-   n:品名 s:サイズ('' 無し / '自由' / 'S/M/L' 選択式)
-   p:単価。数値なら全学部同額、{学部:単価} なら学部ごとに別の単価
-   dp:表示する学部（省略＝全学部）
-   d:備考欄の固定文言 h:備考（仕立て等）欄の固定文言 m:採寸欄を出す sub:小計の区分
+const D_MH=['中学部','高等部'], D_H=['高等部'], D_ALL=['小学部','中学部','高等部'];
 
-   小学部は田丸スポーツの運動着だけを購入するため、
-   制服・作業着・上履き・校章等は中学部／高等部のみに出している。 */
-const D_MH=['中学部','高等部'], D_H=['高等部'];
+/* 運動着はサイズで単価が変わる（田丸スポーツの価格表より）。
+   バンド [サイズ配列, 単価] を並べ、選べるサイズごとの単価に展開する。 */
+function band(){ // band([['110','120'],5360], ...) -> [{size,p},...]
+  const out=[];
+  for(const [sizes,p] of arguments) for(const s of sizes) out.push({size:String(s),p});
+  return out;
+}
+const H_SHO=['110','120','130','140','150','160','170','180','185','190']; // 身長（小中）
+const H_KO =['150','160','170','180','185','190'];                          // 身長（高）
+const POLO_SHO=['120','130','140','150','Ｓ','Ｍ','Ｌ','2Ｌ','3Ｌ','4Ｌ'];
+const POLO_KO =['Ｓ','Ｍ','Ｌ','2Ｌ','3Ｌ','4Ｌ','5Ｌ'];
+const SHOE=['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','27.5','28','28.5'];
+
+/* 小学部・中学部は同じ価格表【小中】 */
+const SP_JU_SHO = band([['110','120','130','140'],5360],[['150','160','170','180'],5640],[['185','190'],5880]);
+const SP_JS_SHO = band([['110','120','130','140'],4000],[['150','160','170','180'],4280],[['185','190'],4550]);
+const SP_T_SHO  = band([['120','130','140'],2890],      [['150','160','170','180'],3180],[['185','190'],3410]);
+const SP_HP_SHO = band([['110','120','130','140'],2820],[['150','160','170','180'],3080],[['185','190'],3340]);
+const SP_PO_SHO = band([['120','130','140','150'],3190],[['Ｓ','Ｍ','Ｌ','2Ｌ','3Ｌ'],3300],[['4Ｌ'],3520]);
+/* 高等部 価格表【高】 */
+const SP_JU_KO = band([['150','160','170','180'],6290],[['185','190'],6530]);
+const SP_JS_KO = band([['150','160','170','180'],4550],[['185','190'],4800]);
+const SP_T_KO  = band([['150','160','170','180'],3210],[['185','190'],3470]);
+const SP_HP_KO = band([['150','160','170','180'],3340],[['185','190'],3600]);
+const SP_PO_KO = band([['Ｓ','Ｍ','Ｌ','2Ｌ','3Ｌ'],3300],[['4Ｌ'],3520],[['5Ｌ'],3850]);
+const sp = (sho,ko) => ({小学部:sho, 中学部:copyList(sho), 高等部:ko});
+function copyList(a){ return a.map(x=>({...x})); }
+
+/* p:単価(数値 or {学部:単価})／sp:サイズ別単価{学部:[{size,p}]}／s:サイズ('' 無 /'自由'/'S/M/L')
+   dp:表示学部／d:備考欄の固定文言／h:仕立て欄の固定文言／m:仕立て記入欄／sub:小計区分 */
 const DEFAULT_MASTER=[
   {g:'m',n:'学生服Ａ体（ウール・ポリエステル）',p:33800,s:'自由',dp:D_MH,d:'＊希望者のみ',m:true},
   {g:'m',n:'学生服Ｂ体（ウール・ポリエステル）',p:36900,s:'自由',dp:D_MH,d:'＊希望者のみ',m:true},
@@ -336,7 +367,8 @@ const DEFAULT_MASTER=[
 
   {g:'f',n:'ブレザー',                       p:22460,s:'自由',dp:D_MH,sub:0,m:true},
   {g:'f',n:'スカート',                       p:17640,s:'自由',dp:D_MH,sub:0,m:true},
-  {g:'f',n:'ネクタイ（青）スナップ付',        p:1600, s:'',    dp:D_MH,sub:0},
+  {g:'f',n:'ネクタイ（青）スナップ付',        p:1600, s:'',    dp:D_H, sub:0},
+  {g:'f',n:'ネクタイ（エンジ）スナップ付',     p:1600, s:'',    dp:['中学部'],sub:0},
   {g:'f',n:'ブラウス（長袖）',                p:4170, s:'自由',dp:D_MH,sub:0},
   {g:'f',n:'ブラウス（半袖）',                p:3210, s:'自由',dp:D_MH,sub:1,d:'＊希望者のみ'},
   {g:'f',n:'紺ハイソックス',                  p:1085, s:'自由',dp:D_MH,sub:1,d:'＊希望者のみ'},
@@ -346,26 +378,31 @@ const DEFAULT_MASTER=[
   {g:'w',n:'ズボン（男子用）',                p:2916, s:'自由',dp:D_H,m:true},
   {g:'w',n:'ズボン（女子用）',                p:2916, s:'自由',dp:D_H,m:true},
 
-  /* 運動着は学部で品物が違うため、単価も学部ごとに持てるようにしてある */
-  {g:'g',n:'ジャージ 上',                     p:{小学部:0,中学部:0,高等部:0}, s:'自由'},
-  {g:'g',n:'ジャージ 下',                     p:{小学部:0,中学部:0,高等部:0}, s:'自由'},
-  {g:'g',n:'ハーフパンツ',                    p:{小学部:0,中学部:0,高等部:0}, s:'自由'},
-  {g:'g',n:'Ｔシャツ',                        p:{小学部:0,中学部:0,高等部:0}, s:'自由'},
-  {g:'g',n:'ポロシャツ',                      p:{小学部:0,中学部:0,高等部:0}, s:'自由'},
-
-  {g:'u',n:'上履き',                          p:0,    s:'自由',dp:D_H},
+  /* 運動着：サイズで単価が変わる。小中は共通、高は別価格 */
+  {g:'g',n:'ジャージ（上）',                  sp:sp(SP_JU_SHO,SP_JU_KO), dp:D_ALL},
+  {g:'g',n:'ジャージ（下）',                  sp:sp(SP_JS_SHO,SP_JS_KO), dp:D_ALL},
+  {g:'g',n:'Ｔシャツ',                        sp:sp(SP_T_SHO, SP_T_KO),  dp:D_ALL},
+  {g:'g',n:'ハーフパンツ',                    sp:sp(SP_HP_SHO,SP_HP_KO), dp:D_ALL},
+  {g:'g',n:'ポロシャツ',                      sp:sp(SP_PO_SHO,SP_PO_KO), dp:D_ALL, d:'＊軽装（希望者のみ）'},
+  {g:'g',n:'上履き',                          p:{高等部:3630}, s:SHOE.join('/'), dp:D_H, d:'令和８年度 青'},
 
   {g:'s',n:'校 章',                          p:1200, s:'',    dp:D_MH},
   {g:'s',n:'台 布',                          p:220,  s:'',    dp:D_MH, d:'＊女子のみ', h:'所持していない場合購入'},
   {g:'s',n:'ボタンセット',                    p:600,  s:'',    dp:D_MH, d:'＊男子のみ', h:'学生服を購入しない場合'}
 ];
-/* 単価を {学部:金額} に、表示学部を配列にそろえる */
+/* 単価を {学部:金額}／sp を {学部:[{size,p}]}／表示学部を配列にそろえる */
 function normalize(list){
   return list.map(m=>{
     const o={...m};
     o.dp = Array.isArray(m.dp) ? DEPTS.filter(d=>m.dp.includes(d)) : [...DEPTS];
-    if(typeof m.p==='number'){ o.p={}; DEPTS.forEach(d=>o.p[d]=m.p); }
-    else { o.p={}; DEPTS.forEach(d=>o.p[d]=(m.p&&m.p[d])||0); }
+    if(m.sp){
+      o.sp={}; DEPTS.forEach(d=>o.sp[d]=(m.sp[d]||[]).map(x=>({size:String(x.size),p:x.p|0})));
+      o.p={}; DEPTS.forEach(d=>o.p[d]=0);
+    }else{
+      o.sp=null;
+      if(typeof m.p==='number'){ o.p={}; DEPTS.forEach(d=>o.p[d]=m.p); }
+      else { o.p={}; DEPTS.forEach(d=>o.p[d]=(m.p&&m.p[d])||0); }
+    }
     return o;
   });
 }
@@ -391,7 +428,13 @@ function vName(id){ const v=VENDORS.find(x=>x.id===id); return v?v.name:id; }
 function vOf(gid){ return grp(gid).v; }
 function sizeMode(s){ return !s ? 'none' : (s==='自由' ? 'free' : 'list'); }
 function shown(m,d){ return (m.dp||DEPTS).includes(d); }
-function priceOf(m,d){ return (m.p && m.p[d]) || 0; }
+function tiersOf(m,d){ return (m.sp && m.sp[d]) || null; }
+/* サイズで単価が変わる品目は、選んだサイズの単価を返す */
+function priceOf(m,d,size){
+  const tiers=tiersOf(m,d);
+  if(tiers){ const r=tiers.find(x=>x.size===(size==null?'':String(size))); return r?r.p:0; }
+  return (m.p && m.p[d]) || 0;
+}
 function itemsIn(gid,d){ return master.map((m,i)=>[m,i]).filter(([m])=>m.g===gid && (!d || shown(m,d))); }
 function groupsFor(d){ return GROUPS.filter(G=>itemsIn(G.id,d).length>0); }
 
@@ -441,23 +484,36 @@ function renderItems(){
 }
 function itemHtml(m,i){
   const c=cart[i]||{size:'',qty:0,memo:''};
-  const mode=sizeMode(m.s);
-  const p=priceOf(m,dept);
-  let sz='';
-  if(mode==='list'){
-    const sizes=m.s.split('/').map(s=>s.trim()).filter(Boolean);
+  const tiers=tiersOf(m,dept);
+  const p=priceOf(m,dept,c.size);
+  let sz='', prLabel;
+  if(tiers){
+    // サイズで単価が変わる品目：サイズを選ぶと単価が決まる
     sz=`<select class="szin" onchange="setSize(${i},this.value)">
         <option value="">サイズを選ぶ</option>
-        ${sizes.map(s=>`<option ${c.size===s?'selected':''}>${esc(s)}</option>`).join('')}
+        ${tiers.map(x=>`<option value="${esc(x.size)}" ${c.size===x.size?'selected':''}>${esc(x.size)}（${yen(x.p)}）</option>`).join('')}
       </select>`;
-  }else if(mode==='free'){
-    sz=`<input type="text" class="szin" id="sz${i}" value="${esc(c.size)}"
-        placeholder="サイズを入力" oninput="setSize(${i},this.value)">`;
+    const ps=[...new Set(tiers.map(x=>x.p))];
+    prLabel = c.size&&p ? yen(p)
+            : (ps.length===1 ? yen(ps[0]) : yen(Math.min(...ps))+'〜'+yen(Math.max(...ps)));
   }else{
-    sz=`<div class="nosz">サイズ無し</div>`;
+    const mode=sizeMode(m.s);
+    if(mode==='list'){
+      const sizes=m.s.split('/').map(s=>s.trim()).filter(Boolean);
+      sz=`<select class="szin" onchange="setSize(${i},this.value)">
+          <option value="">サイズを選ぶ</option>
+          ${sizes.map(s=>`<option ${c.size===s?'selected':''}>${esc(s)}</option>`).join('')}
+        </select>`;
+    }else if(mode==='free'){
+      sz=`<input type="text" class="szin" id="sz${i}" value="${esc(c.size)}"
+          placeholder="サイズを入力" oninput="setSize(${i},this.value)">`;
+    }else{
+      sz=`<div class="nosz">サイズ無し</div>`;
+    }
+    prLabel = p ? yen(p) : '単価未設定';
   }
   return `<div class="item ${c.qty>0?'sel':''}" id="it${i}">
-    <div class="nm">${esc(m.n)}<span class="pr${p?'':' unset'}">${p?yen(p):'単価未設定'}</span>
+    <div class="nm">${esc(m.n)}<span class="pr${p||tiers?'':' unset'}" id="pr${i}">${prLabel}</span>
       ${m.d?`<span class="dn">${esc(m.d)}</span>`:''}
       ${m.h?`<span class="dn" style="color:var(--sub)">${esc(m.h)}</span>`:''}</div>
     ${sz}
@@ -474,9 +530,20 @@ function itemHtml(m,i){
     </div>`:''}
   </div>`;
 }
-function lineAmt(m,c){ return c.qty ? yen(priceOf(m,dept)*c.qty) : '－'; }
+function lineAmt(m,c){ return c.qty ? yen(priceOf(m,dept,c.size)*c.qty) : '－'; }
 function slot(i){ return cart[i]||(cart[i]={size:'',qty:0,memo:''}); }
-function setSize(i,v){ slot(i).size=v; if(v && cart[i].qty===0) addQty(i,1); }
+function setSize(i,v){
+  slot(i).size=v;
+  const m=master[i];
+  if(tiersOf(m,dept)){          // サイズで単価が変わる品目は表示を更新
+    const p=priceOf(m,dept,v);
+    const pr=document.getElementById('pr'+i);
+    if(pr){ pr.textContent = v&&p ? yen(p) : '単価を選ぶ'; pr.classList.toggle('unset', !(v&&p)); }
+    const am=document.getElementById('am'+i);
+    if(am) am.textContent=lineAmt(m,cart[i]);
+  }
+  if(v && cart[i].qty===0) addQty(i,1); else { updateGroupSum(m.g); calcTotal(); }
+}
 function setMemo(i,v){ slot(i).memo=v; }
 function addQty(i,d){
   const c=slot(i);
@@ -493,7 +560,7 @@ function addQty(i,d){
 }
 function groupSum(gid){
   let t=0;
-  for(const i in cart){ if(master[i] && master[i].g===gid) t += priceOf(master[i],dept)*cart[i].qty; }
+  for(const i in cart){ if(master[i] && master[i].g===gid) t += priceOf(master[i],dept,cart[i].size)*cart[i].qty; }
   return t;
 }
 function updateGroupSum(gid){
@@ -504,7 +571,7 @@ function updateGroupSum(gid){
 }
 function calcTotal(){
   let t=0;
-  for(const i in cart){ if(master[i]) t += priceOf(master[i],dept)*cart[i].qty; }
+  for(const i in cart){ if(master[i]) t += priceOf(master[i],dept,cart[i].size)*cart[i].qty; }
   document.getElementById('totalYen').textContent = yen(t);
   return t;
 }
@@ -586,10 +653,11 @@ function confirmEntry(){
     if(cart[i].qty<=0) continue;
     const m=master[i];
     if(!m) continue;
-    if(sizeMode(m.s)!=='none' && !(cart[i].size||'').trim()){
-      alert(`「${m.n}」のサイズが入力されていません。`); return;
+    const needSize = tiersOf(m,dept) || sizeMode(m.s)!=='none';
+    if(needSize && !(cart[i].size||'').trim()){
+      alert(`「${m.n}」のサイズが選ばれていません。`); return;
     }
-    lines.push({g:m.g, n:m.n, size:(cart[i].size||'').trim(), p:priceOf(m,dept), qty:cart[i].qty,
+    lines.push({g:m.g, n:m.n, size:(cart[i].size||'').trim(), p:priceOf(m,dept,cart[i].size), qty:cart[i].qty,
                 memo:m.m?(cart[i].memo||'').trim():''});
   }
   if(!lines.length){ alert('商品が1つも選ばれていません。'); return; }
@@ -739,15 +807,21 @@ function sheetHtml(o){
         lastSub=m.sub||0;
       }
       const l=find(m);
-      const price=l?l.p:priceOf(m,o.dept||'高等部'), qty=l?l.qty:0, amt=price*qty;
+      const d=o.dept||'高等部';
+      const tiers=tiersOf(m,d);
+      const qty=l?l.qty:0;
+      const price=l?l.p:(tiers?0:priceOf(m,d));   // サイズ別品目は注文が無いと単価が定まらない
+      const amt=price*qty;
       subTotal+=amt; groupTotal+=amt;
-      const mode=sizeMode(m.s);
+      const noSize = !tiers && sizeMode(m.s)==='none';
+      // 単価欄：サイズ別品目は「サイズにより」、それ以外は単価
+      const priceCell = price ? price.toLocaleString('ja-JP') : (tiers && !l ? 'サイズにより' : '');
       body+=`<tr>
         ${first?`<td class="cat" rowspan="${span}">${esc(G.name)}</td>`:''}
         <td>${esc(m.n)}</td>
-        <td class="r">${price?price.toLocaleString('ja-JP'):''}</td>
+        <td class="r">${priceCell}</td>
         <td class="c">${esc(m.d||'')}</td>
-        <td class="c">${mode==='none'?'サイズ無し':esc(l?l.size:'')}</td>
+        <td class="c">${noSize?'サイズ無し':esc(l?l.size:'')}</td>
         <td class="c">${qty||''}</td>
         <td class="r">${amt?amt.toLocaleString('ja-JP'):''}</td>
         <td>${esc(l&&l.memo ? l.memo : (m.h||''))}</td>
@@ -760,7 +834,7 @@ function sheetHtml(o){
 
   const dt=new Date(o.fixedAt||o.at);
   return `<div class="sheet">
-    <h3>${esc(SCHOOL)}${esc(o.dept||'')}　${esc(TITLE)}</h3>
+    <h3>${esc(SCHOOL)}${esc(o.dept||'')}　${esc(titleFor(o.dept))}</h3>
     <div class="meta">
       <span>受付番号：${esc(o.no)}${o.fixedAt?'（訂正後）':''}</span>
       <span>受付日：${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日</span>
@@ -923,19 +997,20 @@ function renderMaster(){
           <div class="mitem">
             <div class="mrow">
               <input type="text" data-f="n" data-i="${i}" value="${esc(m.n)}" placeholder="品名">
-              <input type="text" class="sz" data-f="s" data-i="${i}" value="${esc(m.s)}" placeholder="サイズ">
+              ${m.sp?'':`<input type="text" class="sz" data-f="s" data-i="${i}" value="${esc(m.s)}" placeholder="サイズ">`}
               <input type="text" class="dd" data-f="d" data-i="${i}" value="${esc(m.d||'')}" placeholder="備考">
-              <label class="ck"><input type="checkbox" data-f="m" data-i="${i}" ${m.m?'checked':''}>採寸欄</label>
+              ${m.sp?'':`<label class="ck"><input type="checkbox" data-f="m" data-i="${i}" ${m.m?'checked':''}>採寸欄</label>`}
               <button class="btn sm sub" onclick="delItem(${i})">×</button>
             </div>
             <div class="prow">
               ${DEPTS.map(d=>`<label class="pcell${shown(m,d)?' on':''}">
                 <span><input type="checkbox" data-f="dp" data-i="${i}" data-d="${d}"
                   ${shown(m,d)?'checked':''} onchange="onDpToggle(this)">${d}</span>
-                <input type="tel" data-f="p" data-i="${i}" data-d="${d}"
-                  value="${priceOf(m,d)}" placeholder="単価" ${shown(m,d)?'':'disabled'}>
+                ${m.sp?'':`<input type="tel" data-f="p" data-i="${i}" data-d="${d}"
+                  value="${priceOf(m,d)}" placeholder="単価" ${shown(m,d)?'':'disabled'}>`}
               </label>`).join('')}
             </div>
+            ${m.sp?spEditor(m,i):''}
           </div>`).join('')
         :'<p class="note" style="margin:10px 0">品目がありません。</p>'}
         <button class="btn sm sub" style="margin-top:10px" onclick="addItem('${G.id}')">＋ ${esc(G.name)}に品目を追加</button>
@@ -943,6 +1018,26 @@ function renderMaster(){
     </div>`;
   }).join('');
 }
+/* サイズ別単価（運動着）の編集表：学部ごとに サイズ×単価 の行を並べる */
+function spEditor(m,i){
+  return `<div class="speditor">
+    <div class="note" style="margin:0 0 6px">サイズ別の単価（サイズを選ぶと単価が決まります）</div>
+    ${DEPTS.filter(d=>shown(m,d)).map(d=>`
+      <div class="spdept">
+        <div class="spdh">${d}</div>
+        <div class="sptbl">
+          ${(m.sp[d]||[]).map((x,k)=>`<div class="sprow">
+            <input type="text" data-f="sps" data-i="${i}" data-d="${d}" data-k="${k}" value="${esc(x.size)}" placeholder="サイズ">
+            <input type="tel" data-f="spp" data-i="${i}" data-d="${d}" data-k="${k}" value="${x.p}" placeholder="単価">
+            <button class="btn sm sub" onclick="delSp(${i},'${d}',${k})">×</button>
+          </div>`).join('')}
+          <button class="btn sm sub" onclick="addSp(${i},'${d}')">＋ サイズを追加</button>
+        </div>
+      </div>`).join('')}
+  </div>`;
+}
+function addSp(i,d){ collectMaster(); (master[i].sp[d]=master[i].sp[d]||[]).push({size:'',p:0}); renderMaster(); }
+function delSp(i,d,k){ collectMaster(); master[i].sp[d].splice(k,1); renderMaster(); }
 /* チェックを外した学部の単価欄は入力できないようにする（保存はまとめて） */
 function onDpToggle(el){
   const cell=el.closest('.pcell');
@@ -973,6 +1068,8 @@ function collectMaster(){
       if(el.checked) m._dp.push(d);
     }
     else if(f==='p'){ m.p=m.p||{}; m.p[d]=parseInt(el.value,10)||0; }
+    else if(f==='sps'){ if(m.sp&&m.sp[d]&&m.sp[d][+el.dataset.k]) m.sp[d][+el.dataset.k].size=el.value; }
+    else if(f==='spp'){ if(m.sp&&m.sp[d]&&m.sp[d][+el.dataset.k]) m.sp[d][+el.dataset.k].p=parseInt(el.value,10)||0; }
     else if(f==='m'){ m.m=el.checked; }
     else m[f]=el.value;
   });
@@ -983,7 +1080,7 @@ function addItem(gid){
   const rows=itemsIn(gid,null);
   const last=rows.length?rows[rows.length-1][0]:null;
   const p={}; DEPTS.forEach(d=>p[d]=0);
-  master.push({g:gid, n:'', s:'自由', p, d:'',
+  master.push({g:gid, n:'', s:'自由', p, sp:null, d:'',
     dp: last ? [...(last.dp||DEPTS)] : [...DEPTS],
     ...(last && last.sub!==undefined ? {sub:last.sub} : {})});
   renderMaster();
@@ -1008,11 +1105,11 @@ function recalcPrices(){
   const miss=new Set();
   const find=l=>{ const m=master.find(x=>x.g===l.g && x.n===l.n); if(!m) miss.add(l.n); return m; };
   const changed=orders.filter(o=>o.lines.some(l=>{
-    const m=find(l); return m && priceOf(m,o.dept||'高等部')!==l.p;})).length;
+    const m=find(l); return m && priceOf(m,o.dept||'高等部',l.size)!==l.p;})).length;
   if(!changed){ alert('金額が変わる申込はありませんでした。'); return; }
   if(!confirm(`${changed}件の申込の金額が変わります。実行しますか？`)) return;
   orders.forEach(o=>{
-    o.lines.forEach(l=>{ const m=master.find(x=>x.g===l.g && x.n===l.n); if(m) l.p=priceOf(m,o.dept||'高等部'); });
+    o.lines.forEach(l=>{ const m=master.find(x=>x.g===l.g && x.n===l.n); if(m) l.p=priceOf(m,o.dept||'高等部',l.size); });
     o.total=o.lines.reduce((s,l)=>s+l.p*l.qty,0);
   });
   save(K_ORDERS,orders);
