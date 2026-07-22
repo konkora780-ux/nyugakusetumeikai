@@ -59,6 +59,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);border-c
 .chip:active{background:#dbe7f7}
 .chip.big{padding:12px 24px;font-size:17px;font-weight:700}
 .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.updbar{background:#0f9d58;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px;font-size:15px;font-weight:600;position:sticky;top:47px;z-index:19}
+.updbar button{margin-left:auto;background:#fff;color:#0f7a44;border:0;border-radius:8px;padding:8px 16px;font-size:15px;font-weight:700;font-family:inherit}
 
 /* 分類ブロック（販売元で色分け） */
 .grp{border-radius:12px;overflow:hidden;border:1px solid var(--line);margin-bottom:16px;background:#fff}
@@ -168,6 +170,11 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
   <h1>制服・作業着・運動着申込</h1>
   <span class="dev" id="devLabel">端末 —</span>
 </header>
+
+<div id="updBar" class="updbar hide">
+  <span>新しいバージョンがあります。</span>
+  <button onclick="doUpdate()">今すぐ更新</button>
+</div>
 
 <nav>
   <button id="tabEntry" class="on" onclick="go('entry')">受付</button>
@@ -288,6 +295,13 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
     <button class="btn wide danger" onclick="clearAll()">受付データを全部消す</button>
     <p class="note">説明会が終わり、印刷とバックアップが済んでから消してください。</p>
   </div>
+
+  <div class="card">
+    <h2>バージョン</h2>
+    <p class="note" style="margin:0">この画面の版：<b id="verLabel">—</b></p>
+    <button class="btn wide sub" style="margin-top:10px" onclick="doUpdate()">最新の状態に更新する</button>
+    <p class="note">画面が古いと感じたら押してください（インターネット接続が必要）。</p>
+  </div>
 </section>
 
 </main>
@@ -301,6 +315,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
+const VERSION='2026-07-22-01';   /* ← 更新のたびに数字を変える（新しい版の目印） */
 const SCHOOL='釜石祥雲支援学校';
 const DEPTS =['小学部','中学部','高等部'];
 /* 申込書の表題は学部によって変える（元の注文票に合わせて） */
@@ -1116,10 +1131,30 @@ function recalcPrices(){
   alert(`${changed}件を計算し直しました。`+(miss.size?`\n\n※ マスタに無い品目はそのままです：\n・${[...miss].join('\n・')}`:''));
 }
 
+/* ===================== 更新チェック ===================== */
+/* 起動時に最新のindex.htmlを取りに行き、VERSIONが違えば更新バーを出す。
+   ネットに繋がらない時は何もしない（受付はそのまま続けられる）。 */
+function checkUpdate(){
+  if(!navigator.onLine) return;
+  fetch(location.pathname+'?v='+Date.now(), {cache:'no-store'})
+    .then(r=>r.text())
+    .then(html=>{
+      const m=html.match(/const VERSION='([^']+)'/);
+      if(m && m[1]!==VERSION) document.getElementById('updBar').classList.remove('hide');
+    })
+    .catch(()=>{});
+}
+function doUpdate(){
+  // キャッシュを確実に無視して読み直す
+  location.replace(location.pathname+'?v='+Date.now());
+}
+
 /* ===================== 起動 ===================== */
 document.getElementById('sDev').value=devNo;
 document.getElementById('devLabel').textContent='端末 '+devNo+'号機';
+document.getElementById('verLabel').textContent=VERSION;
 renderDept(); renderItems(); calcTotal();
+setTimeout(checkUpdate, 800);
 </script>
 </body>
 </html>
