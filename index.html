@@ -342,7 +342,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const VERSION='2026-07-23-01';   /* ← 更新のたびに数字を変える（新しい版の目印） */
+const VERSION='2026-07-23-02';   /* ← 更新のたびに数字を変える（新しい版の目印） */
 const SCHOOL='釜石祥雲支援学校';
 const DEPTS =['小学部','中学部','高等部'];
 /* 申込書の表題は学部によって変える（元の注文票に合わせて） */
@@ -368,9 +368,10 @@ const SUBNAME={0:'基本', 1:'希望者のみ'};
 /* お金の支払先（持参先・集金元）。分類ごとに支払先が決まっている
    制服→照井呉服店へ持参／運動着・上履き→田丸スポーツへ持参／作業着・校章等→学校で集金 */
 const PAYTO=[
-  {id:'terui',  name:'照井呉服店', target:'制服',          when:'当日お持ちください', groups:['m','f']},
-  {id:'tamaru', name:'田丸スポーツ',target:'運動着・上履き', when:'当日お持ちください', groups:['g']},
-  {id:'school', name:'学校で集金',  target:'作業着・校章等', when:'後日集金します',    groups:['w','s']}
+  {id:'terui',   col:'照井呉服店',  name:'照井呉服店',        target:'制服',            when:'当日お持ちください', groups:['m','f']},
+  {id:'tamaru',  col:'田丸スポーツ',name:'田丸スポーツ',      target:'運動着・上履き',   when:'当日お持ちください', groups:['g']},
+  {id:'school_w',col:'作業着(学校)',name:'学校で集金（作業着）', target:'作業着',          when:'後日集金します',    groups:['w']},
+  {id:'school_s',col:'校章等(学校)',name:'学校で集金（校章等）', target:'校章・台布・ボタン', when:'後日集金します',    groups:['s']}
 ];
 function payOf(gid){ return PAYTO.find(p=>p.groups.includes(gid)); }
 /* 1件の申込を支払先ごとに合計する */
@@ -894,7 +895,7 @@ function renderPay(){
       <td>${esc(p.target)}</td><td class="n">${yen(t[p.id])}</td></tr>`).join('')}
     <tr><th colspan="2">総合計</th><th class="n">${yen(grand)}</th></tr>
   </table>
-  <p class="note">照井呉服店・田丸スポーツは当日それぞれへ持参、作業着と校章等は学校で後日集金します。</p>`;
+  <p class="note">照井呉服店・田丸スポーツは当日それぞれへ持参、作業着と校章等は学校でそれぞれ後日集金します。</p>`;
 }
 function delOrder(i){
   if(!confirm(`${orders[i].no} ${orders[i].student} さんの申込を削除します。よろしいですか？`)) return;
@@ -1033,7 +1034,7 @@ function printPay(){
   const g=payGrandTotals();
   const grand=PAYTO.reduce((s,p)=>s+g[p.id],0);
   const head=`<tr><th style="width:14mm">受付番号</th><th style="width:16mm">学部</th><th>生徒氏名</th>
-    ${PAYTO.map(p=>`<th style="width:24mm">${esc(p.name)}</th>`).join('')}<th style="width:24mm">合計</th></tr>`;
+    ${PAYTO.map(p=>`<th style="width:22mm">${esc(p.col||p.name)}</th>`).join('')}<th style="width:22mm">合計</th></tr>`;
   const rows=orders.map(o=>{
     const t=payTotals(o);
     return `<tr><td class="c">${esc(o.no)}</td><td class="c">${esc(o.dept||'')}</td><td>${esc(o.student)}</td>
@@ -1054,7 +1055,7 @@ function printPay(){
     <table>${head}${rows}${foot}</table>
     <p style="font-size:8pt;margin-top:3mm">
       ※ 照井呉服店（制服）・田丸スポーツ（運動着・上履き）は、当日それぞれの販売店へお支払い。
-      作業着と校章等は学校で後日集金します。
+      作業着・校章等は学校でそれぞれ後日集金します。
     </p>
   </div>`);
 }
