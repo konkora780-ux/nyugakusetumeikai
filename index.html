@@ -162,9 +162,9 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 .sheet .kv th{width:24mm;background:#f2f2f2;text-align:center}
 .sheet .kv td{height:9mm}
 .sheet .fin td{background:#e8eef7;font-weight:700;font-size:10pt}
-.sheet .vfoot{margin-top:3mm}
-.sheet .vfoot th{text-align:left;background:#f2f2f2;font-size:9pt}
-.sheet .vfoot td{font-size:8.5pt;padding:2px 5px}
+.sheet .vf-box{border:1.5px solid #000;border-radius:3px;padding:2mm 3mm;margin-top:2.5mm}
+.sheet .vf-head{font-size:10pt;font-weight:700}
+.sheet .vf-sub{font-size:9pt;padding-left:5mm;margin-top:0.5mm}
 </style>
 </head>
 <body>
@@ -325,7 +325,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const VERSION='2026-07-22-03';   /* ← 更新のたびに数字を変える（新しい版の目印） */
+const VERSION='2026-07-22-04';   /* ← 更新のたびに数字を変える（新しい版の目印） */
 const SCHOOL='釜石祥雲支援学校';
 const DEPTS =['小学部','中学部','高等部'];
 /* 申込書の表題は学部によって変える（元の注文票に合わせて） */
@@ -433,7 +433,7 @@ function normalize(list){
   });
 }
 
-const K_MASTER='nm_master5', K_ORDERS='nm_orders', K_DEV='nm_dev', K_SEQ='nm_seq', K_VENDOR='nm_vendor';
+const K_MASTER='nm_master5', K_ORDERS='nm_orders', K_DEV='nm_dev', K_SEQ='nm_seq', K_VENDOR='nm_vendor2';
 
 const copy = o => JSON.parse(JSON.stringify(o));
 function load(k,d){ try{const v=localStorage.getItem(k); return v?JSON.parse(v):d;}catch(e){return d;} }
@@ -441,11 +441,11 @@ function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
 
 /* 販売元ごとの連絡先（申込書の下部に印刷）。設定画面で入力する */
 const DEFAULT_VENDOR={
-  isagoda:{label:'制服・作業着', tel:'', note:'受け取り・お支払いは「照井呉服店」にてお願いします。'},
-  tamaru :{label:'運動着・上履き', tel:'', note:'商品が出来次第「田丸スポーツ」から連絡が入ります。'},
-  school :{label:'校章・台布・ボタン', tel:'', note:'入学式当日に学校でお渡しします。'}
+  isagoda:{title:'制服販売店', shop:'照井呉服店', addr:'釜石市小佐野1-2-30', tel:'0193-23-6444',
+           maker:'いさごだ', makerAddr:'盛岡市肴町4-26', makerTel:'019-622-7126'},
+  tamaru :{title:'運動着販売店', shop:'田丸スポーツ', addr:'釜石市大町2-1-25', tel:'0193-22-5551'}
 };
-let vendorInfo = Object.assign(copy(DEFAULT_VENDOR), load(K_VENDOR, {}));
+let vendorInfo = load(K_VENDOR, copy(DEFAULT_VENDOR));
 
 let master = normalize(load(K_MASTER, DEFAULT_MASTER));
 let orders = load(K_ORDERS, []);
@@ -895,19 +895,23 @@ function sheetHtml(o){
     </p>
   </div>`;
 }
-/* 申込書下部の「お問い合わせ・受け取り先」。その学部で扱う販売元だけ出す */
+/* 申込書下部の販売店案内。その学部で扱う販売元だけ出す（制服＝いさごだ系／運動着＝田丸） */
 function vendorFooter(o){
   const used=new Set((o.dept?groupsFor(o.dept):GROUPS).map(G=>G.v));
-  const rows=VENDORS.filter(v=>used.has(v.id) && vendorInfo[v.id])
-    .map(v=>{
-      const vi=vendorInfo[v.id];
-      const bits=[`<b>${esc(v.name)}</b>（${esc(vi.label||'')}）`];
-      if(vi.tel)  bits.push('TEL：'+esc(vi.tel));
-      if(vi.note) bits.push(esc(vi.note));
-      return `<tr><td>${bits.join('　')}</td></tr>`;
-    });
-  if(!rows.length) return '';
-  return `<table class="vfoot"><tr><th>お問い合わせ・受け取り先</th></tr>${rows.join('')}</table>`;
+  let html='';
+  ['isagoda','tamaru'].forEach(id=>{
+    if(!used.has(id)) return;
+    const vi=vendorInfo[id]; if(!vi) return;
+    let block=`<div class="vf-head">➤ ${esc(vi.title||'')}：${esc(vi.shop||'')}</div>`;
+    const line1=[esc(vi.addr||''), vi.tel?'TEL：'+esc(vi.tel):''].filter(Boolean).join('　　');
+    if(line1) block+=`<div class="vf-sub">${line1}</div>`;
+    if(vi.maker){
+      const mk=['制服製造：'+esc(vi.maker), esc(vi.makerAddr||''), vi.makerTel?'TEL：'+esc(vi.makerTel):''].filter(Boolean).join('　');
+      block+=`<div class="vf-sub">【${mk}】</div>`;
+    }
+    html+=`<div class="vf-box">${block}</div>`;
+  });
+  return html;
 }
 /* 小計・合計の行。分類セル（列1）が rowspan で入るので、この行は列2〜8の7列ぶんにする */
 function sumRow(label, amount, isTotal){
@@ -1031,18 +1035,33 @@ function saveDev(){
   document.getElementById('devLabel').textContent='端末 '+devNo+'号機';
 }
 function renderVendor(){
-  document.getElementById('vendorArea').innerHTML = VENDORS.map(v=>{
-    const vi=vendorInfo[v.id]||{};
-    return `<div class="grp" data-v="${v.id}" style="margin-bottom:12px">
-      <div class="gh">${esc(v.name)}</div>
+  const fld=(id,f,label,ph)=>{
+    const vi=vendorInfo[id]||{};
+    return `<label>${label}</label>
+      <input type="text" data-vf="${f}" data-v="${id}" value="${esc(vi[f]||'')}" placeholder="${ph||''}">`;
+  };
+  document.getElementById('vendorArea').innerHTML = `
+    <div class="grp" data-v="isagoda" style="margin-bottom:12px">
+      <div class="gh">制服・作業着</div>
       <div style="padding:10px 12px">
-        <label style="margin-top:0">連絡先（電話番号など）</label>
-        <input type="text" data-vf="tel" data-v="${v.id}" value="${esc(vi.tel||'')}" placeholder="例）0193-00-0000">
-        <label>受け取り・お支払いの案内</label>
-        <input type="text" data-vf="note" data-v="${v.id}" value="${esc(vi.note||'')}" placeholder="受け取り方法などの一言">
+        ${fld('isagoda','title','見出し','制服販売店')}
+        ${fld('isagoda','shop','販売店名','照井呉服店')}
+        ${fld('isagoda','addr','住所','釜石市小佐野1-2-30')}
+        ${fld('isagoda','tel','TEL','0193-23-6444')}
+        ${fld('isagoda','maker','製造元（【　】内に印刷）','いさごだ')}
+        ${fld('isagoda','makerAddr','製造元の住所','盛岡市肴町4-26')}
+        ${fld('isagoda','makerTel','製造元のTEL','019-622-7126')}
+      </div>
+    </div>
+    <div class="grp" data-v="tamaru" style="margin-bottom:12px">
+      <div class="gh">運動着・上履き</div>
+      <div style="padding:10px 12px">
+        ${fld('tamaru','title','見出し','運動着販売店')}
+        ${fld('tamaru','shop','販売店名','田丸スポーツ')}
+        ${fld('tamaru','addr','住所','釜石市大町2-1-25')}
+        ${fld('tamaru','tel','TEL','0193-22-5551')}
       </div>
     </div>`;
-  }).join('');
 }
 function saveVendor(){
   document.querySelectorAll('#vendorArea [data-vf]').forEach(el=>{
