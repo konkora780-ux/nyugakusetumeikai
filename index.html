@@ -245,13 +245,8 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
     <div id="listArea"></div>
   </div>
   <div class="card">
-    <h2>お支払い先ごとの合計</h2>
-    <div id="payArea"></div>
-  </div>
-  <div class="card">
     <h2>出力</h2>
     <button class="btn wide" onclick="printSheets()">申込書を印刷（1人1枚）</button>
-    <button class="btn wide sub" onclick="printPay()">お支払い集計を印刷</button>
     <button class="btn wide sub" onclick="printSummary()">業者別 集計表を印刷</button>
     <button class="btn wide sub" onclick="exportCsv()">CSVで書き出す（Excel・Teams用）</button>
     <p class="note">印刷は Safari の「共有 → プリント」でも、PC のブラウザからでも同じ結果になります。</p>
@@ -342,7 +337,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const VERSION='2026-07-23-02';   /* ← 更新のたびに数字を変える（新しい版の目印） */
+const VERSION='2026-07-23-03';   /* ← 更新のたびに数字を変える（新しい版の目印） */
 const SCHOOL='釜石祥雲支援学校';
 const DEPTS =['小学部','中学部','高等部'];
 /* 申込書の表題は学部によって変える（元の注文票に合わせて） */
@@ -876,26 +871,6 @@ function renderList(){
     <tr><th colspan="5">合計 ${orders.length}件</th>
         <th class="n">${yen(orders.reduce((s,o)=>s+o.total,0))}</th><th></th></tr>
   </table>`;
-  renderPay();
-}
-/* 全申込を支払先ごとに合計する */
-function payGrandTotals(){
-  const t={}; PAYTO.forEach(p=>t[p.id]=0);
-  orders.forEach(o=>{ const pt=payTotals(o); PAYTO.forEach(p=>t[p.id]+=pt[p.id]); });
-  return t;
-}
-function renderPay(){
-  const a=document.getElementById('payArea'); if(!a) return;
-  if(!orders.length){ a.innerHTML='<div class="empty">まだ受付データがありません。</div>'; return; }
-  const t=payGrandTotals();
-  const grand=PAYTO.reduce((s,p)=>s+t[p.id],0);
-  a.innerHTML=`<table>
-    <tr><th>お支払い先</th><th>対象</th><th>金額</th></tr>
-    ${PAYTO.map(p=>`<tr><td>${esc(p.name)}<div class="note" style="margin:0">${esc(p.when)}</div></td>
-      <td>${esc(p.target)}</td><td class="n">${yen(t[p.id])}</td></tr>`).join('')}
-    <tr><th colspan="2">総合計</th><th class="n">${yen(grand)}</th></tr>
-  </table>
-  <p class="note">照井呉服店・田丸スポーツは当日それぞれへ持参、作業着と校章等は学校でそれぞれ後日集金します。</p>`;
 }
 function delOrder(i){
   if(!confirm(`${orders[i].no} ${orders[i].student} さんの申込を削除します。よろしいですか？`)) return;
@@ -1027,37 +1002,6 @@ function sumRow(label, amount, isTotal){
 function printSheets(){
   if(!orders.length){ alert('受付データがありません。'); return; }
   doPrint(orders.map(sheetHtml).join(''));
-}
-/* お支払い集計表（支払先ごと・生徒ごとの内訳つき） */
-function printPay(){
-  if(!orders.length){ alert('受付データがありません。'); return; }
-  const g=payGrandTotals();
-  const grand=PAYTO.reduce((s,p)=>s+g[p.id],0);
-  const head=`<tr><th style="width:14mm">受付番号</th><th style="width:16mm">学部</th><th>生徒氏名</th>
-    ${PAYTO.map(p=>`<th style="width:22mm">${esc(p.col||p.name)}</th>`).join('')}<th style="width:22mm">合計</th></tr>`;
-  const rows=orders.map(o=>{
-    const t=payTotals(o);
-    return `<tr><td class="c">${esc(o.no)}</td><td class="c">${esc(o.dept||'')}</td><td>${esc(o.student)}</td>
-      ${PAYTO.map(p=>`<td class="r">${t[p.id]?t[p.id].toLocaleString('ja-JP'):''}</td>`).join('')}
-      <td class="r">${o.total.toLocaleString('ja-JP')}</td></tr>`;
-  }).join('');
-  const foot=`<tr class="tot"><td colspan="3" class="r">合計 ${orders.length}名</td>
-    ${PAYTO.map(p=>`<td class="r">${g[p.id].toLocaleString('ja-JP')}</td>`).join('')}
-    <td class="r">${grand.toLocaleString('ja-JP')}</td></tr>`;
-  const summary=`<table style="margin-bottom:5mm"><tr><th>お支払い先</th><th>対象</th><th>受け取り／集金</th><th style="width:30mm">合計金額</th></tr>
-    ${PAYTO.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.target)}</td><td>${esc(p.when)}</td>
-      <td class="r">${g[p.id].toLocaleString('ja-JP')} 円</td></tr>`).join('')}
-    <tr class="tot"><td colspan="3" class="r">総合計</td><td class="r">${grand.toLocaleString('ja-JP')} 円</td></tr></table>`;
-  doPrint(`<div class="sheet">
-    <h3>${esc(SCHOOL)}　お支払い集計表</h3>
-    <div class="meta"><span>申込者数：${orders.length}名</span><span>作成日：${new Date().toLocaleDateString('ja-JP')}</span></div>
-    ${summary}
-    <table>${head}${rows}${foot}</table>
-    <p style="font-size:8pt;margin-top:3mm">
-      ※ 照井呉服店（制服）・田丸スポーツ（運動着・上履き）は、当日それぞれの販売店へお支払い。
-      作業着・校章等は学校でそれぞれ後日集金します。
-    </p>
-  </div>`);
 }
 
 /* ===================== 業者別 集計表 ===================== */
