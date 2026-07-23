@@ -162,6 +162,8 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 .sheet .kv th{width:24mm;background:#f2f2f2;text-align:center}
 .sheet .kv td{height:9mm}
 .sheet .fin td{background:#e8eef7;font-weight:700;font-size:10pt}
+.sheet .notes{border:1px solid #000;background:#f4f4f4;padding:2mm 3mm;margin-top:3mm;font-size:8.5pt;line-height:1.5}
+.sheet .nline{text-indent:-1em;padding-left:1em}
 .sheet .vf-box{border:1.5px solid #000;border-radius:3px;padding:2mm 3mm;margin-top:2.5mm}
 .sheet .vf-head{font-size:10pt;font-weight:700}
 .sheet .vf-sub{font-size:9pt;padding-left:5mm;margin-top:0.5mm}
@@ -300,6 +302,13 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
   </div>
 
   <div class="card">
+    <h2>注意書き（申込書に印刷）</h2>
+    <p class="note" style="margin:0 0 8px">学部ごとに、申込書の下部へ「＊」付きの箇条書きで印刷されます。1行が1項目です（行頭の「＊」は自動で付きます）。</p>
+    <div id="notesArea"></div>
+    <button class="btn sm" style="margin-top:12px" onclick="saveNotes()">保存</button>
+  </div>
+
+  <div class="card">
     <h2>データ管理</h2>
     <button class="btn wide sub" onclick="exportJson()">全データを書き出す（バックアップ）</button>
     <button class="btn wide danger" onclick="clearAll()">受付データを全部消す</button>
@@ -325,7 +334,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const VERSION='2026-07-22-04';   /* ← 更新のたびに数字を変える（新しい版の目印） */
+const VERSION='2026-07-22-05';   /* ← 更新のたびに数字を変える（新しい版の目印） */
 const SCHOOL='釜石祥雲支援学校';
 const DEPTS =['小学部','中学部','高等部'];
 /* 申込書の表題は学部によって変える（元の注文票に合わせて） */
@@ -433,7 +442,7 @@ function normalize(list){
   });
 }
 
-const K_MASTER='nm_master5', K_ORDERS='nm_orders', K_DEV='nm_dev', K_SEQ='nm_seq', K_VENDOR='nm_vendor2';
+const K_MASTER='nm_master5', K_ORDERS='nm_orders', K_DEV='nm_dev', K_SEQ='nm_seq', K_VENDOR='nm_vendor2', K_NOTES='nm_notes';
 
 const copy = o => JSON.parse(JSON.stringify(o));
 function load(k,d){ try{const v=localStorage.getItem(k); return v?JSON.parse(v):d;}catch(e){return d;} }
@@ -446,6 +455,35 @@ const DEFAULT_VENDOR={
   tamaru :{title:'運動着販売店', shop:'田丸スポーツ', addr:'釜石市大町2-1-25', tel:'0193-22-5551'}
 };
 let vendorInfo = load(K_VENDOR, copy(DEFAULT_VENDOR));
+
+/* 申込書に印刷する注意書き（学部ごと）。元の注文票の文面。設定画面で編集できる */
+const DEFAULT_NOTES={
+  小学部:[
+    '運動着は出来次第、「田丸スポーツ」から連絡が来ますので、受け取り・お支払いください。（採寸日から４週間後くらいで仕上がります。）',
+    '申込書、領収証は大切に保管しておいてください。'
+  ].join('\n'),
+  中学部:[
+    '男子学生服は、特に指定はありませんが、黒の詰め襟服となっております。',
+    '男子学生服を注文されない場合は、ボタンセットを購入し、お持ちの学生服に着用していただきます。',
+    'サイズ、お直し等により価格が変わります。（規格外のサイズについては仕立てになります。）',
+    '制服は「いさごだ」から連絡が来ますので、その後「照井呉服店」にて受け取り・お支払いください。作業着は、入学後にお渡しします。（採寸日から４週間後くらいで仕上がります。）',
+    '校章と台布（女子のみ）は本校中学部と同じものになります。中学部で使用していたものを使っていただいて構いません。',
+    '校章と台布（女子のみ）を購入した場合の受け取りについては入学式当日に学校でお渡しします。',
+    '運動着・上履きの受け取り・お支払いは、田丸スポーツにてお願いいたします。「田丸スポーツ」から連絡が入ります。',
+    '申込書、領収証は大切に保管しておいてください。'
+  ].join('\n'),
+  高等部:[
+    '男子学生服は、特に指定はありませんが、黒の詰め襟服となっております。',
+    '男子学生服を注文されない場合は、ボタンセットを購入し、お持ちの学生服に着用していただきます。',
+    'サイズ、お直し等により価格が変わります。（規格外のサイズについては仕立てになります。）',
+    '制服は「いさごだ」から連絡が来ますので、その後「照井呉服店」にて受け取り・お支払いください。作業着は、入学後にお渡しします。（採寸日から４週間後くらいで仕上がります。）',
+    '校章と台布（女子のみ）は本校中学部と同じものになります。中学部で使用していたものを使っていただいて構いません。',
+    '校章と台布（女子のみ）を購入した場合の受け取りについては入学式当日に学校でお渡しします。',
+    '運動着・上履きの受け取り・お支払いは、田丸スポーツにてお願いいたします。「田丸スポーツ」から連絡が入ります。',
+    '申込書、領収証は大切に保管しておいてください。'
+  ].join('\n')
+};
+let notesInfo = load(K_NOTES, copy(DEFAULT_NOTES));
 
 let master = normalize(load(K_MASTER, DEFAULT_MASTER));
 let orders = load(K_ORDERS, []);
@@ -480,7 +518,7 @@ function go(p){
   });
   document.getElementById('totalBar').classList.toggle('hide', p!=='entry');
   if(p==='list') renderList();
-  if(p==='set'){ renderMaster(); renderVendor(); }
+  if(p==='set'){ renderMaster(); renderVendor(); renderNotes(); }
   window.scrollTo(0,0);
 }
 
@@ -889,11 +927,17 @@ function sheetHtml(o){
       <tr><th>住所</th><td>${esc(o.zip)}　${esc(o.addr)}</td></tr>
       <tr><th>連絡先</th><td>${esc(o.tel)}</td></tr>
     </table>
+    ${notesBlock(o.dept)}
     ${vendorFooter(o)}
-    <p style="font-size:8pt;margin:2mm 0 0">
-      ※ お支払いは、後日それぞれの販売元で商品をお受け取りの際にお願いいたします。${esc(o.memo?'　備考：'+o.memo:'')}
-    </p>
+    ${o.memo?`<p style="font-size:8pt;margin:2mm 0 0">備考：${esc(o.memo)}</p>`:''}
   </div>`;
+}
+/* 学部ごとの注意書き（＊で始まる箇条書き）を枠付きで印刷 */
+function notesBlock(dept){
+  const txt=(notesInfo && notesInfo[dept]) || '';
+  const lines=txt.split('\n').map(s=>s.trim()).filter(Boolean);
+  if(!lines.length) return '';
+  return `<div class="notes">${lines.map(l=>`<div class="nline">＊${esc(l)}</div>`).join('')}</div>`;
 }
 /* 申込書下部の販売店案内。その学部で扱う販売元だけ出す（制服＝いさごだ系／運動着＝田丸） */
 function vendorFooter(o){
@@ -991,7 +1035,7 @@ function exportCsv(){
   dl(csv,'text/csv','申込一覧');
 }
 function exportJson(){
-  dl(JSON.stringify({master,orders,vendor:vendorInfo,dev:devNo},null,1),'application/json','申込データ_'+devNo+'号機');
+  dl(JSON.stringify({master,orders,vendor:vendorInfo,notes:notesInfo,dev:devNo},null,1),'application/json','申込データ_'+devNo+'号機');
 }
 function dl(text,type,base){
   const d=new Date(), p=n=>String(n).padStart(2,'0');
@@ -1070,6 +1114,17 @@ function saveVendor(){
   });
   save(K_VENDOR,vendorInfo);
   alert('販売元の連絡先を保存しました。');
+}
+function renderNotes(){
+  document.getElementById('notesArea').innerHTML = DEPTS.map(d=>`
+    <label style="margin-top:${d===DEPTS[0]?0:14}px">${d}</label>
+    <textarea data-note="${d}" rows="7" style="font-size:14px;line-height:1.5">${esc(notesInfo[d]||'')}</textarea>
+  `).join('');
+}
+function saveNotes(){
+  document.querySelectorAll('#notesArea [data-note]').forEach(el=>{ notesInfo[el.dataset.note]=el.value; });
+  save(K_NOTES,notesInfo);
+  alert('注意書きを保存しました。');
 }
 function renderMaster(){
   document.getElementById('masterArea').innerHTML = GROUPS.map(G=>{
