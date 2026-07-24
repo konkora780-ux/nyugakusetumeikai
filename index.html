@@ -319,6 +319,18 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
   </div>
 
   <div class="card">
+    <h2>設定を他のiPadにそろえる（親機 → 子機）</h2>
+    <p class="note" style="margin:0 0 10px">
+      1台（親機）で単価などを設定し、そのファイルを他のiPadに読み込ませると、
+      <b>単価・表示学部・注意書き・販売元の連絡先</b>がそろいます。受付データはそのまま残ります。
+    </p>
+    <button class="btn wide" onclick="exportSettings()">この端末の設定を書き出す（親機用ファイル）</button>
+    <label style="margin-top:14px">親機の設定ファイルを読み込む</label>
+    <input type="file" id="fImportSet" accept=".json" onchange="importSettings(this)">
+    <p class="note">手順：親機で書き出す → AirDropで各iPadへ送る → 各iPadでここから読み込む。</p>
+  </div>
+
+  <div class="card">
     <h2>データ管理</h2>
     <button class="btn wide sub" onclick="exportJson()">全データを書き出す（バックアップ）</button>
     <button class="btn wide danger" onclick="clearAll()">受付データを全部消す</button>
@@ -344,7 +356,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const VERSION='2026-07-23-09';   /* ← 更新のたびに数字を変える（新しい版の目印） */
+const VERSION='2026-07-23-10';   /* ← 更新のたびに数字を変える（新しい版の目印） */
 const SCHOOL='釜石祥雲支援学校';
 const DEPTS =['小学部','中学部','高等部'];
 /* 申込書の表題は学部によって変える（元の注文票に合わせて） */
@@ -1129,6 +1141,31 @@ function importJson(el){
       save(K_ORDERS,orders); renderList();
       alert(`取り込みました。\n新規 ${add}件 / 訂正の反映 ${upd}件 / 変更なし ${skip}件`);
     }catch(e){ alert('読み込めませんでした。書き出したJSONファイルを選んでください。'); }
+    el.value='';
+  };
+  r.readAsText(f);
+}
+/* 親機→子機：設定（単価・表示学部・注意書き・業者連絡先）だけを配る */
+function exportSettings(){
+  dl(JSON.stringify({kind:'settings', master, vendor:vendorInfo, notes:notesInfo}, null, 1),
+     'application/json', '設定_親機');
+}
+function importSettings(el){
+  const f=el.files[0]; if(!f){ return; }
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const j=JSON.parse(r.result);
+      if(!Array.isArray(j.master)) throw 0;
+      if(!confirm('この端末の単価・表示学部・注意書き・販売元の連絡先を、読み込んだ設定に置き換えます。\n（受付データは残ります）\nよろしいですか？')){ el.value=''; return; }
+      master = normalize(j.master); save(K_MASTER, master);
+      if(j.vendor){ vendorInfo = j.vendor; save(K_VENDOR, vendorInfo); }
+      if(j.notes){ notesInfo = j.notes; save(K_NOTES, notesInfo); }
+      cart={};
+      renderMaster(); renderVendor(); renderNotes();
+      if(dept){ renderItems(); calcTotal(); }
+      alert('設定を読み込みました。単価などがそろいました。');
+    }catch(e){ alert('設定ファイルを読み込めませんでした。「設定を書き出す」で作ったファイルを選んでください。'); }
     el.value='';
   };
   r.readAsText(f);
