@@ -337,7 +337,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const VERSION='2026-07-23-04';   /* ← 更新のたびに数字を変える（新しい版の目印） */
+const VERSION='2026-07-23-05';   /* ← 更新のたびに数字を変える（新しい版の目印） */
 const SCHOOL='釜石祥雲支援学校';
 const DEPTS =['小学部','中学部','高等部'];
 /* 申込書の表題は学部によって変える（元の注文票に合わせて） */
@@ -1020,7 +1020,9 @@ function printSummary(){
       return b.lines.map((l,k)=>`<tr>
         ${k===0?`<td class="c" rowspan="${span}">${esc(b.o.no)}</td>
                  <td class="c" rowspan="${span}">${esc(b.o.dept||'')}</td>
-                 <td rowspan="${span}">${esc(b.o.student)}</td>`:''}
+                 <td rowspan="${span}">${esc(b.o.student)}
+                   <div style="font-size:8pt;color:#444">保護者：${esc(b.o.guardian||'')}</div>
+                   <div style="font-size:8pt;color:#444">☎ ${esc(b.o.tel||'')}</div></td>`:''}
         <td>${esc(grp(l.g).name)}</td>
         <td>${esc(l.n)}${l.memo?`<div style="font-size:8pt;color:#444">仕立て：${esc(l.memo)}</div>`:''}</td>
         <td class="c">${esc(l.size||'—')}</td>
@@ -1034,8 +1036,8 @@ function printSummary(){
       <div class="meta"><span>${esc(SCHOOL)}　申込 ${blocks.length}名</span>
         <span>作成日：${new Date().toLocaleDateString('ja-JP')}</span></div>
       <table>
-        <tr><th style="width:14mm">受付番号</th><th style="width:15mm">学部</th><th style="width:26mm">生徒氏名</th>
-            <th style="width:24mm">分類</th><th>品名</th><th style="width:18mm">サイズ</th>
+        <tr><th style="width:13mm">受付番号</th><th style="width:13mm">学部</th><th style="width:34mm">生徒氏名／保護者・連絡先</th>
+            <th style="width:22mm">分類</th><th>品名</th><th style="width:16mm">サイズ</th>
             <th style="width:11mm">数量</th><th style="width:18mm">単価</th><th style="width:22mm">金額</th></tr>
         ${rows||'<tr><td colspan="9" style="text-align:center">申込なし</td></tr>'}
         <tr class="tot"><td colspan="6" class="r">合計</td><td class="r">${totQty}</td>
