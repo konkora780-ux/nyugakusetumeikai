@@ -359,7 +359,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const VERSION='2026-07-24-06';   /* ← 更新のたびに数字を変える（新しい版の目印） */
+const VERSION='2026-07-24-07';   /* ← 更新のたびに数字を変える（新しい版の目印） */
 const SCHOOL='釜石祥雲支援学校';
 const DEPTS =['小学部','中学部','高等部'];
 /* 申込書の表題は学部によって変える（元の注文票に合わせて） */
@@ -1103,7 +1103,7 @@ function aggTable(blocks){
       <tr><th style="width:15mm">学部</th><th style="width:28mm">分類</th><th>品名</th>
           <th style="width:18mm">サイズ</th><th style="width:14mm">数量</th>
           <th style="width:20mm">単価</th><th style="width:24mm">金額</th></tr>
-      ${a.map(x=>`<tr><td class="c">${esc(x.dept)}</td><td>${esc(grp(x.g).name)}</td><td>${esc(x.n)}</td>
+      ${a.map((x,i)=>`${i>0 && x.dept!==a[i-1].dept?'<tr class="gap gap-dept"><td colspan="7"></td></tr>':''}<tr><td class="c">${esc(x.dept)}</td><td>${esc(grp(x.g).name)}</td><td>${esc(x.n)}</td>
         <td class="c">${esc(x.size||'—')}</td><td class="r">${x.qty}</td>
         <td class="r">${x.p.toLocaleString('ja-JP')}</td>
         <td class="r">${(x.p*x.qty).toLocaleString('ja-JP')}</td></tr>`).join('')}
