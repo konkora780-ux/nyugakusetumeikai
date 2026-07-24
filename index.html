@@ -30,6 +30,12 @@ nav button{
   color:var(--sub);border-bottom:3px solid transparent;font-family:inherit;
 }
 nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
+nav button{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;position:relative}
+nav button.holding{background:#eef3fa}
+nav .hold{display:inline-block;margin-left:6px;font-size:10px;font-weight:600;color:#fff;background:var(--sub);border-radius:99px;padding:1px 7px;vertical-align:middle}
+#toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:rgba(20,25,35,.9);color:#fff;
+  padding:10px 18px;border-radius:99px;font-size:14px;font-weight:600;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.show{opacity:1}
 main{padding:16px;max-width:860px;margin:0 auto;padding-bottom:120px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
 .card h2{font-size:16px;margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid var(--line)}
@@ -187,8 +193,8 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <nav>
   <button id="tabEntry" class="on" onclick="go('entry')">受付</button>
-  <button id="tabList" onclick="go('list')">一覧・出力</button>
-  <button id="tabSet" onclick="go('set')">設定</button>
+  <button id="tabList">一覧・出力<span class="hold">長押し</span></button>
+  <button id="tabSet">設定<span class="hold">長押し</span></button>
 </nav>
 
 <main>
@@ -338,9 +344,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const VERSION='2026-07-23-08';   /* ← 更新のたびに数字を変える（新しい版の目印） */
-const SETTINGS_PASS='6020';      /* 設定を開くパスワード（変えたいときはここを書き換える） */
-let setUnlocked=false;           /* 一度入れたら、開いている間は再入力なし */
+const VERSION='2026-07-23-09';   /* ← 更新のたびに数字を変える（新しい版の目印） */
 const SCHOOL='釜石祥雲支援学校';
 const DEPTS =['小学部','中学部','高等部'];
 /* 申込書の表題は学部によって変える（元の注文票に合わせて） */
@@ -534,12 +538,6 @@ function groupsFor(d){ return GROUPS.filter(G=>itemsIn(G.id,d).length>0); }
 
 /* ===================== 画面切替 ===================== */
 function go(p){
-  if(p==='set' && !setUnlocked){
-    const v=prompt('設定を開くにはパスワードを入力してください');
-    if(v===null) return;                     // キャンセル：今の画面のまま
-    if(v!==SETTINGS_PASS){ alert('パスワードが違います。'); return; }
-    setUnlocked=true;
-  }
   ['entry','list','set'].forEach(x=>{
     document.getElementById('pg'+x[0].toUpperCase()+x.slice(1)).classList.toggle('hide', x!==p);
     document.getElementById('tab'+x[0].toUpperCase()+x.slice(1)).classList.toggle('on', x===p);
@@ -1348,6 +1346,29 @@ function doUpdate(){
   // キャッシュを確実に無視して読み直す
   location.replace(location.pathname+'?v='+Date.now());
 }
+
+/* ===================== 長押しで開く（一覧・出力／設定） ===================== */
+function toast(msg){
+  let t=document.getElementById('toast');
+  if(!t){ t=document.createElement('div'); t.id='toast'; document.body.appendChild(t); }
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'), 1400);
+}
+function bindLongPress(el, cb, ms){
+  if(!el || !el.addEventListener) return;
+  ms=ms||650;
+  let timer=null;
+  const start=e=>{ e.preventDefault(); el.classList.add('holding');
+    timer=setTimeout(()=>{ timer=null; el.classList.remove('holding'); cb(); }, ms); };
+  const clear=()=>{ if(timer){ clearTimeout(timer); timer=null; } el.classList.remove('holding'); };
+  el.addEventListener('pointerdown', start);
+  el.addEventListener('pointerup', e=>{ if(timer){ clear(); toast('長押しで開きます'); } });
+  el.addEventListener('pointerleave', clear);
+  el.addEventListener('pointercancel', clear);
+  el.addEventListener('contextmenu', e=>e.preventDefault());
+}
+bindLongPress(document.getElementById('tabList'), ()=>go('list'));
+bindLongPress(document.getElementById('tabSet'),  ()=>go('set'));
 
 /* ===================== 起動 ===================== */
 document.getElementById('sDev').value=devNo;
