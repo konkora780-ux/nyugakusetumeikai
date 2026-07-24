@@ -181,6 +181,8 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 .sheet .vf-box{border:1.5px solid #000;border-radius:3px;padding:2mm 3mm;margin-top:2.5mm}
 .sheet .vf-head{font-size:10pt;font-weight:700}
 .sheet .vf-sub{font-size:9pt;padding-left:5mm;margin-top:0.5mm}
+/* 中学部・高等部は品目が多く必ず2ページ。お支払い先から2ページ目に固定 */
+.sheet .tail-break{break-before:page;page-break-before:always}
 </style>
 </head>
 <body>
@@ -359,7 +361,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const VERSION='2026-07-24-08';   /* ← 更新のたびに数字を変える（新しい版の目印） */
+const VERSION='2026-07-24-09';   /* ← 更新のたびに数字を変える（新しい版の目印） */
 const SCHOOL='釜石祥雲支援学校';
 const DEPTS =['小学部','中学部','高等部'];
 /* 申込書の表題は学部によって変える（元の注文票に合わせて） */
@@ -963,17 +965,19 @@ function sheetHtml(o){
       <tr class="fin"><td colspan="5" class="r">総合計</td><td class="c"></td>
           <td class="r">${o.total.toLocaleString('ja-JP')}</td><td>円</td></tr>
     </table>
-    ${payBlock(o)}
-    <table class="kv">
-      <tr><th>入学する学部</th><td>${esc(o.dept||'')}</td></tr>
-      <tr><th>生徒氏名</th><td>${esc(o.student)}　（${esc(o.kana)}）</td></tr>
-      <tr><th>保護者氏名</th><td>${esc(o.guardian)}</td></tr>
-      <tr><th>住所</th><td>${esc(o.zip)}　${esc(o.addr)}</td></tr>
-      <tr><th>連絡先</th><td>${esc(o.tel)}</td></tr>
-    </table>
-    ${notesBlock(o.dept)}
-    ${vendorFooter(o)}
-    ${o.memo?`<p style="font-size:8pt;margin:2mm 0 0">備考：${esc(o.memo)}</p>`:''}
+    <div class="tail${(o.dept==='中学部'||o.dept==='高等部')?' tail-break':''}">
+      ${payBlock(o)}
+      <table class="kv">
+        <tr><th>入学する学部</th><td>${esc(o.dept||'')}</td></tr>
+        <tr><th>生徒氏名</th><td>${esc(o.student)}　（${esc(o.kana)}）</td></tr>
+        <tr><th>保護者氏名</th><td>${esc(o.guardian)}</td></tr>
+        <tr><th>住所</th><td>${esc(o.zip)}　${esc(o.addr)}</td></tr>
+        <tr><th>連絡先</th><td>${esc(o.tel)}</td></tr>
+      </table>
+      ${notesBlock(o.dept)}
+      ${vendorFooter(o)}
+      ${o.memo?`<p style="font-size:8pt;margin:2mm 0 0">備考：${esc(o.memo)}</p>`:''}
+    </div>
   </div>`;
 }
 /* お支払い先ごとの金額（この申込ぶん） */
