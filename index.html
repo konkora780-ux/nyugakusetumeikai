@@ -255,7 +255,6 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
   </div>
   <div class="card">
     <h2>出力</h2>
-    <button class="btn wide" onclick="printSheets()">申込書を印刷（1人1枚）</button>
     <button class="btn wide sub" onclick="printSummary()">業者別 注文一覧を印刷（誰が何を）</button>
     <button class="btn wide sub" onclick="exportCsv()">CSVで書き出す（Excel・Teams用）</button>
     <p class="note">印刷は Safari の「共有 → プリント」でも、PC のブラウザからでも同じ結果になります。</p>
@@ -358,7 +357,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const VERSION='2026-07-24-01';   /* ← 更新のたびに数字を変える（新しい版の目印） */
+const VERSION='2026-07-24-02';   /* ← 更新のたびに数字を変える（新しい版の目印） */
 const SCHOOL='釜石祥雲支援学校';
 const DEPTS =['小学部','中学部','高等部'];
 /* 申込書の表題は学部によって変える（元の注文票に合わせて） */
@@ -877,7 +876,7 @@ function renderList(){
   const a=document.getElementById('listArea');
   if(!orders.length){ a.innerHTML='<div class="empty">まだ受付データがありません。</div>'; return; }
   a.innerHTML=`<table>
-    <tr><th>受付番号</th><th>学部</th><th>生徒氏名</th><th>保護者</th><th>点数</th><th>合計</th><th style="width:120px"></th></tr>
+    <tr><th>受付番号</th><th>学部</th><th>生徒氏名</th><th>保護者</th><th>点数</th><th>合計</th><th style="width:180px">操作</th></tr>
     ${orders.map((o,i)=>`<tr>
       <td>${esc(o.no)}${o.fixedAt?'<span class="badge">訂正済</span>':''}</td>
       <td>${esc(o.dept||'')}</td>
@@ -887,6 +886,7 @@ function renderList(){
       <td style="white-space:nowrap">
         <button class="btn sm" onclick="editOrder(${i})">訂正</button>
         <button class="btn sm sub" onclick="delOrder(${i})">削除</button>
+        <button class="btn sm ok" onclick="printOne(${i})">印刷</button>
       </td>
     </tr>`).join('')}
     <tr><th colspan="5">合計 ${orders.length}件</th>
@@ -1020,9 +1020,10 @@ function sumRow(label, amount, isTotal){
     <td class="r">${amount?amount.toLocaleString('ja-JP'):'0'}</td>
     <td class="c">円</td></tr>`;
 }
-function printSheets(){
-  if(!orders.length){ alert('受付データがありません。'); return; }
-  doPrint(orders.map(sheetHtml).join(''));
+/* 受付一覧の各行から、その人の申込書だけを印刷する */
+function printOne(i){
+  if(!orders[i]){ return; }
+  doPrint(sheetHtml(orders[i]));
 }
 
 /* ===================== 業者別 注文一覧（誰が何を注文したか） ===================== */
