@@ -165,8 +165,10 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 .sheet .c{text-align:center}
 .sheet .sum td,.sheet .sum th{background:#f7f7f7;font-weight:700}
 .sheet .tot td,.sheet .tot th{background:#e8eef7;font-weight:700}
-.sheet .sub td{background:#f4f6fa;font-weight:700;border-left:0;border-bottom:0}
+.sheet .sub td{background:#f4f6fa;font-weight:700}
+.sheet .sub td.lbl{border-left:0;border-bottom:0;background:#fff}
 .sheet tr.gap td{border:0;background:#fff;height:4mm;padding:0}
+.sheet tr.gap-dept td{height:9mm}
 .sheet .kv{margin-top:4mm}
 .sheet .kv th{width:24mm;background:#f2f2f2;text-align:center}
 .sheet .kv td{height:9mm}
@@ -357,7 +359,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const VERSION='2026-07-24-05';   /* ← 更新のたびに数字を変える（新しい版の目印） */
+const VERSION='2026-07-24-06';   /* ← 更新のたびに数字を変える（新しい版の目印） */
 const SCHOOL='釜石祥雲支援学校';
 const DEPTS =['小学部','中学部','高等部'];
 /* 申込書の表題は学部によって変える（元の注文票に合わせて） */
@@ -1036,7 +1038,7 @@ function printSummary(){
       .filter(b=>b.lines.length)
       // 学部ごと（小学部→中学部→高等部）、同じ学部内は受付番号順
       .sort((a,b)=> DEPTS.indexOf(a.o.dept)-DEPTS.indexOf(b.o.dept) || a.o.no.localeCompare(b.o.no));
-    const rows = blocks.map(b=>{
+    const blockHtml=b=>{
       const span=b.lines.length;
       const sub=b.lines.reduce((a,l)=>a+l.p*l.qty,0);
       const lineRows=b.lines.map((l,k)=>`<tr>
@@ -1053,10 +1055,20 @@ function printSummary(){
         <td class="r">${(l.p*l.qty).toLocaleString('ja-JP')}</td>
       </tr>`).join('');
       // 生徒ごとの合計（各自でお支払いに行くため、この人のお支払い額）
-      const subRow=`<tr class="sub"><td colspan="8" class="r">${esc(b.o.student)} さん お支払い額</td>
-        <td class="r">${sub.toLocaleString('ja-JP')} 円</td></tr>`;
+      // 文言側は左・下の罫線なし／総額側は罫線を残す
+      const subRow=`<tr class="sub"><td colspan="8" class="r lbl">${esc(b.o.student)} さん お支払い額</td>
+        <td class="r amt">${sub.toLocaleString('ja-JP')} 円</td></tr>`;
       return lineRows+subRow;
-    }).join('<tr class="gap"><td colspan="9"></td></tr>');   // 人と人の間に空白
+    };
+    // 人と人の間は空白1行、学部が変わるところは大きめの空白でくっきり分ける
+    let rows='';
+    blocks.forEach((b,bi)=>{
+      if(bi>0){
+        const deptChanged = b.o.dept !== blocks[bi-1].o.dept;
+        rows += `<tr class="gap${deptChanged?' gap-dept':''}"><td colspan="9"></td></tr>`;
+      }
+      rows += blockHtml(b);
+    });
     return `<div class="sheet">
       <h3>${esc(v.name)} 御中　注文一覧</h3>
       <div class="meta"><span>${esc(SCHOOL)}　申込 ${blocks.length}名</span>
