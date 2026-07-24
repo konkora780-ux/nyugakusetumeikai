@@ -338,7 +338,9 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const VERSION='2026-07-23-06';   /* ← 更新のたびに数字を変える（新しい版の目印） */
+const VERSION='2026-07-23-07';   /* ← 更新のたびに数字を変える（新しい版の目印） */
+const SETTINGS_PASS='6020';      /* 設定を開くパスワード（変えたいときはここを書き換える） */
+let setUnlocked=false;           /* 一度入れたら、開いている間は再入力なし */
 const SCHOOL='釜石祥雲支援学校';
 const DEPTS =['小学部','中学部','高等部'];
 /* 申込書の表題は学部によって変える（元の注文票に合わせて） */
@@ -532,6 +534,12 @@ function groupsFor(d){ return GROUPS.filter(G=>itemsIn(G.id,d).length>0); }
 
 /* ===================== 画面切替 ===================== */
 function go(p){
+  if(p==='set' && !setUnlocked){
+    const v=prompt('設定を開くにはパスワードを入力してください');
+    if(v===null) return;                     // キャンセル：今の画面のまま
+    if(v!==SETTINGS_PASS){ alert('パスワードが違います。'); return; }
+    setUnlocked=true;
+  }
   ['entry','list','set'].forEach(x=>{
     document.getElementById('pg'+x[0].toUpperCase()+x.slice(1)).classList.toggle('hide', x!==p);
     document.getElementById('tab'+x[0].toUpperCase()+x.slice(1)).classList.toggle('on', x===p);
