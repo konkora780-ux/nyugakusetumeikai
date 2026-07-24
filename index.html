@@ -338,7 +338,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const VERSION='2026-07-23-07';   /* ← 更新のたびに数字を変える（新しい版の目印） */
+const VERSION='2026-07-23-08';   /* ← 更新のたびに数字を変える（新しい版の目印） */
 const SETTINGS_PASS='6020';      /* 設定を開くパスワード（変えたいときはここを書き換える） */
 let setUnlocked=false;           /* 一度入れたら、開いている間は再入力なし */
 const SCHOOL='釜石祥雲支援学校';
@@ -1053,9 +1053,37 @@ function printSummary(){
             <th style="width:11mm">数量</th><th style="width:18mm">単価</th><th style="width:22mm">金額</th></tr>
         ${rows||'<tr><td colspan="9" style="text-align:center">申込なし</td></tr>'}
       </table>
+      ${aggTable(blocks)}
     </div>`;
   }).join('');
   doPrint(html);
+}
+/* 品目別の集計（全体で何が何枚出ているか）。学部・サイズ・単価ごとにまとめる */
+function aggTable(blocks){
+  const agg={};
+  blocks.forEach(b=>b.lines.forEach(l=>{
+    const k=[b.o.dept||'',l.g,l.n,l.size||'',l.p].join('|');
+    agg[k]=agg[k]||{dept:b.o.dept||'',g:l.g,n:l.n,size:l.size,p:l.p,qty:0};
+    agg[k].qty+=l.qty;
+  }));
+  const a=Object.values(agg).sort((x,y)=>
+    DEPTS.indexOf(x.dept)-DEPTS.indexOf(y.dept) ||
+    GROUPS.findIndex(g=>g.id===x.g)-GROUPS.findIndex(g=>g.id===y.g) ||
+    String(x.n).localeCompare(String(y.n)) || String(x.size).localeCompare(String(y.size)));
+  if(!a.length) return '';
+  const totQty=a.reduce((s,x)=>s+x.qty,0), totAmt=a.reduce((s,x)=>s+x.p*x.qty,0);
+  return `<h4 style="font-size:11pt;margin:6mm 0 2mm">品目別 集計（全体の購入数）</h4>
+    <table>
+      <tr><th style="width:15mm">学部</th><th style="width:28mm">分類</th><th>品名</th>
+          <th style="width:18mm">サイズ</th><th style="width:14mm">数量</th>
+          <th style="width:20mm">単価</th><th style="width:24mm">金額</th></tr>
+      ${a.map(x=>`<tr><td class="c">${esc(x.dept)}</td><td>${esc(grp(x.g).name)}</td><td>${esc(x.n)}</td>
+        <td class="c">${esc(x.size||'—')}</td><td class="r">${x.qty}</td>
+        <td class="r">${x.p.toLocaleString('ja-JP')}</td>
+        <td class="r">${(x.p*x.qty).toLocaleString('ja-JP')}</td></tr>`).join('')}
+      <tr class="tot"><td colspan="4" class="r">合計</td><td class="r">${totQty}</td>
+        <td></td><td class="r">${totAmt.toLocaleString('ja-JP')}</td></tr>
+    </table>`;
 }
 function doPrint(html){
   document.getElementById('printArea').innerHTML=html;
