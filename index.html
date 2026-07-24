@@ -165,7 +165,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 .sheet .c{text-align:center}
 .sheet .sum td,.sheet .sum th{background:#f7f7f7;font-weight:700}
 .sheet .tot td,.sheet .tot th{background:#e8eef7;font-weight:700}
-.sheet .sub td{background:#f4f6fa;font-weight:700}
+.sheet .sub td{background:#f4f6fa;font-weight:700;border-left:0;border-bottom:0}
 .sheet tr.gap td{border:0;background:#fff;height:4mm;padding:0}
 .sheet .kv{margin-top:4mm}
 .sheet .kv th{width:24mm;background:#f2f2f2;text-align:center}
@@ -357,7 +357,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const VERSION='2026-07-24-04';   /* ← 更新のたびに数字を変える（新しい版の目印） */
+const VERSION='2026-07-24-05';   /* ← 更新のたびに数字を変える（新しい版の目印） */
 const SCHOOL='釜石祥雲支援学校';
 const DEPTS =['小学部','中学部','高等部'];
 /* 申込書の表題は学部によって変える（元の注文票に合わせて） */
@@ -1034,7 +1034,8 @@ function printSummary(){
     const blocks = orders
       .map(o=>({o, lines:o.lines.filter(l=>vOf(l.g)===v.id)}))
       .filter(b=>b.lines.length)
-      .sort((a,b)=>a.o.no.localeCompare(b.o.no));
+      // 学部ごと（小学部→中学部→高等部）、同じ学部内は受付番号順
+      .sort((a,b)=> DEPTS.indexOf(a.o.dept)-DEPTS.indexOf(b.o.dept) || a.o.no.localeCompare(b.o.no));
     const rows = blocks.map(b=>{
       const span=b.lines.length;
       const sub=b.lines.reduce((a,l)=>a+l.p*l.qty,0);
