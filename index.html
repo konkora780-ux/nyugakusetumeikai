@@ -158,6 +158,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 .sheet .c{text-align:center}
 .sheet .sum td,.sheet .sum th{background:#f7f7f7;font-weight:700}
 .sheet .tot td,.sheet .tot th{background:#e8eef7;font-weight:700}
+.sheet .sub td{background:#f4f6fa;font-weight:700}
 .sheet .kv{margin-top:4mm}
 .sheet .kv th{width:24mm;background:#f2f2f2;text-align:center}
 .sheet .kv td{height:9mm}
@@ -337,7 +338,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const VERSION='2026-07-23-05';   /* ← 更新のたびに数字を変える（新しい版の目印） */
+const VERSION='2026-07-23-06';   /* ← 更新のたびに数字を変える（新しい版の目印） */
 const SCHOOL='釜石祥雲支援学校';
 const DEPTS =['小学部','中学部','高等部'];
 /* 申込書の表題は学部によって変える（元の注文票に合わせて） */
@@ -1013,11 +1014,10 @@ function printSummary(){
       .map(o=>({o, lines:o.lines.filter(l=>vOf(l.g)===v.id)}))
       .filter(b=>b.lines.length)
       .sort((a,b)=>a.o.no.localeCompare(b.o.no));
-    const tot = blocks.reduce((s,b)=>s+b.lines.reduce((a,l)=>a+l.p*l.qty,0),0);
-    const totQty = blocks.reduce((s,b)=>s+b.lines.reduce((a,l)=>a+l.qty,0),0);
     const rows = blocks.map(b=>{
       const span=b.lines.length;
-      return b.lines.map((l,k)=>`<tr>
+      const sub=b.lines.reduce((a,l)=>a+l.p*l.qty,0);
+      const lineRows=b.lines.map((l,k)=>`<tr>
         ${k===0?`<td class="c" rowspan="${span}">${esc(b.o.no)}</td>
                  <td class="c" rowspan="${span}">${esc(b.o.dept||'')}</td>
                  <td rowspan="${span}">${esc(b.o.student)}
@@ -1030,6 +1030,10 @@ function printSummary(){
         <td class="r">${l.p.toLocaleString('ja-JP')}</td>
         <td class="r">${(l.p*l.qty).toLocaleString('ja-JP')}</td>
       </tr>`).join('');
+      // 生徒ごとの合計（各自でお支払いに行くため、この人のお支払い額）
+      const subRow=`<tr class="sub"><td colspan="8" class="r">${esc(b.o.student)} さん お支払い額</td>
+        <td class="r">${sub.toLocaleString('ja-JP')} 円</td></tr>`;
+      return lineRows+subRow;
     }).join('');
     return `<div class="sheet">
       <h3>${esc(v.name)} 御中　注文一覧</h3>
@@ -1040,8 +1044,6 @@ function printSummary(){
             <th style="width:22mm">分類</th><th>品名</th><th style="width:16mm">サイズ</th>
             <th style="width:11mm">数量</th><th style="width:18mm">単価</th><th style="width:22mm">金額</th></tr>
         ${rows||'<tr><td colspan="9" style="text-align:center">申込なし</td></tr>'}
-        <tr class="tot"><td colspan="6" class="r">合計</td><td class="r">${totQty}</td>
-            <td></td><td class="r">${tot.toLocaleString('ja-JP')}</td></tr>
       </table>
     </div>`;
   }).join('');
