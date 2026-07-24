@@ -166,6 +166,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 .sheet .sum td,.sheet .sum th{background:#f7f7f7;font-weight:700}
 .sheet .tot td,.sheet .tot th{background:#e8eef7;font-weight:700}
 .sheet .sub td{background:#f4f6fa;font-weight:700}
+.sheet tr.gap td{border:0;background:#fff;height:4mm;padding:0}
 .sheet .kv{margin-top:4mm}
 .sheet .kv th{width:24mm;background:#f2f2f2;text-align:center}
 .sheet .kv td{height:9mm}
@@ -356,7 +357,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const VERSION='2026-07-24-03';   /* ← 更新のたびに数字を変える（新しい版の目印） */
+const VERSION='2026-07-24-04';   /* ← 更新のたびに数字を変える（新しい版の目印） */
 const SCHOOL='釜石祥雲支援学校';
 const DEPTS =['小学部','中学部','高等部'];
 /* 申込書の表題は学部によって変える（元の注文票に合わせて） */
@@ -1054,7 +1055,7 @@ function printSummary(){
       const subRow=`<tr class="sub"><td colspan="8" class="r">${esc(b.o.student)} さん お支払い額</td>
         <td class="r">${sub.toLocaleString('ja-JP')} 円</td></tr>`;
       return lineRows+subRow;
-    }).join('');
+    }).join('<tr class="gap"><td colspan="9"></td></tr>');   // 人と人の間に空白
     return `<div class="sheet">
       <h3>${esc(v.name)} 御中　注文一覧</h3>
       <div class="meta"><span>${esc(SCHOOL)}　申込 ${blocks.length}名</span>
