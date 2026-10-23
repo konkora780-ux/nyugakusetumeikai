@@ -146,6 +146,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 /* ============ 印刷（申込書 A4 1枚） ============ */
 #printArea{display:none}
+@page{size:A4;margin:8mm}
 @media print{
   body{background:#fff}
   header,nav,main,.total,.ovl{display:none!important}
@@ -158,9 +159,9 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 .sheet h3{text-align:center;font-size:14pt;margin:0 0 3mm;font-weight:700}
 .sheet .meta{display:flex;justify-content:space-between;font-size:8pt;margin-bottom:2mm}
 .sheet table{font-size:8.5pt;width:100%}
-.sheet th,.sheet td{border:1px solid #000;padding:1.5px 4px;line-height:1.35;vertical-align:middle}
+.sheet th,.sheet td{border:1px solid #000;padding:1px 3px;line-height:1.25;vertical-align:middle}
 .sheet th{background:#eee;text-align:center;font-weight:700}
-.sheet .cat{background:#f2f2f2;font-weight:700;text-align:center;width:24mm;writing-mode:horizontal-tb}
+.sheet .cat{background:#f2f2f2;font-weight:700;text-align:center;width:22mm;writing-mode:horizontal-tb}
 .sheet .r{text-align:right}
 .sheet .c{text-align:center}
 .sheet .sum td,.sheet .sum th{background:#f7f7f7;font-weight:700}
@@ -361,7 +362,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const VERSION='2026-07-24-09';   /* ← 更新のたびに数字を変える（新しい版の目印） */
+const VERSION='2026-10-23-01';   /* ← 更新のたびに数字を変える（新しい版の目印） */
 const SCHOOL='釜石祥雲支援学校';
 const DEPTS =['小学部','中学部','高等部'];
 /* 申込書の表題は学部によって変える（元の注文票に合わせて） */
@@ -957,10 +958,10 @@ function sheetHtml(o){
       <span>受付日：${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日</span>
     </div>
     <table>
-      <tr><th colspan="2">品 名</th><th style="width:17mm">単価（税込）円</th>
-          <th style="width:17mm">備考</th><th style="width:17mm">サイズ</th>
-          <th style="width:11mm">数量</th><th style="width:19mm">金額</th>
-          <th style="width:40mm">備考（仕立て等）</th></tr>
+      <tr><th colspan="2">品 名</th><th style="width:16mm">単価<br>（税込）円</th>
+          <th style="width:22mm">備考</th><th style="width:15mm">サイズ</th>
+          <th style="width:9mm">数量</th><th style="width:17mm">金額</th>
+          <th style="width:34mm">備考（仕立て等）</th></tr>
       ${body}
       <tr class="fin"><td colspan="5" class="r">総合計</td><td class="c"></td>
           <td class="r">${o.total.toLocaleString('ja-JP')}</td><td>円</td></tr>
@@ -985,7 +986,7 @@ function payBlock(o){
   const t=payTotals(o);
   const rows=PAYTO.filter(p=>t[p.id]>0).map(p=>`<tr>
     <td><b>${esc(p.name)}</b>（${esc(p.when)}）</td>
-    <td class="c">${esc(p.target)}</td>
+    <td class="c">${esc(payTarget(p,o.dept))}</td>
     <td class="r">${t[p.id].toLocaleString('ja-JP')} 円</td></tr>`).join('');
   if(!rows.length) return '';
   return `<table class="pay">
@@ -993,6 +994,12 @@ function payBlock(o){
     ${rows}
     <tr class="tot"><td colspan="2" class="r">お支払い合計</td><td class="r">${o.total.toLocaleString('ja-JP')} 円</td></tr>
   </table>`;
+}
+/* 対象の文言から、その学部で扱わない上履きを外す（小学部・中学部は「運動着」だけ） */
+function payTarget(p,dept){
+  if(!dept || !p.target.includes('上履き')) return p.target;
+  const has=master.some(m=>p.groups.includes(m.g) && m.n.includes('上履き') && shown(m,dept));
+  return has ? p.target : p.target.replace('・上履き','');
 }
 /* 学部ごとの注意書き（＊で始まる箇条書き）を枠付きで印刷 */
 function notesBlock(dept){
