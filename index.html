@@ -362,7 +362,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ===================== 定義 ===================== */
-const VERSION='2026-10-23-01';   /* ← 更新のたびに数字を変える（新しい版の目印） */
+const VERSION='2026-10-31-01';   /* ← 更新のたびに数字を変える（新しい版の目印） */
 const SCHOOL='釜石祥雲支援学校';
 const DEPTS =['小学部','中学部','高等部'];
 /* 申込書の表題は学部によって変える（元の注文票に合わせて） */
@@ -883,7 +883,7 @@ function renderList(){
   a.innerHTML=`<table>
     <tr><th>受付番号</th><th>学部</th><th>生徒氏名</th><th>保護者</th><th>点数</th><th>合計</th><th style="width:180px">操作</th></tr>
     ${orders.map((o,i)=>`<tr>
-      <td>${esc(o.no)}${o.fixedAt?'<span class="badge">訂正済</span>':''}</td>
+      <td>${esc(o.no)}${o.fixedAt?'<span class="badge">訂正済</span>':''}${orders.filter(x=>x.no===o.no).length>1?'<span class="badge" style="background:var(--warn);color:#fff">番号重複</span>':''}</td>
       <td>${esc(o.dept||'')}</td>
       <td>${esc(o.student)}</td><td>${esc(o.guardian)}</td>
       <td class="n">${o.lines.reduce((s,l)=>s+l.qty,0)}</td>
@@ -1155,15 +1155,22 @@ function importJson(el){
       const j=JSON.parse(r.result);
       if(!Array.isArray(j.orders)) throw 0;
       let add=0, upd=0, skip=0;
+      const dup=[];
       j.orders.forEach(o=>{
-        const k=orders.findIndex(x=>x.no===o.no);
-        if(k<0){ orders.push(o); add++; return; }
+        /* 同じ申込かどうかは「受付番号＋最初の受付日時」で判定する。
+           番号だけで判定すると、端末番号が同じiPad同士で別の人の申込を上書きしてしまう */
+        const k=orders.findIndex(x=>x.no===o.no && (x.at||'')===(o.at||''));
+        if(k<0){
+          if(orders.some(x=>x.no===o.no)) dup.push(`${o.no} ${o.student||''}`);
+          orders.push(o); add++; return;
+        }
         const mine=orders[k].fixedAt||orders[k].at||'', theirs=o.fixedAt||o.at||'';
         if(theirs>mine){ orders[k]=o; upd++; } else skip++;
       });
-      orders.sort((a,b)=>a.no.localeCompare(b.no));
+      orders.sort((a,b)=>a.no.localeCompare(b.no) || String(a.at||'').localeCompare(String(b.at||'')));
       save(K_ORDERS,orders); renderList();
-      alert(`取り込みました。\n新規 ${add}件 / 訂正の反映 ${upd}件 / 変更なし ${skip}件`);
+      alert(`取り込みました。\n新規 ${add}件 / 訂正の反映 ${upd}件 / 変更なし ${skip}件`
+        +(dup.length?`\n\n※ 受付番号が同じで別の方の申込がありました（両方とも残しています）。\n端末番号が同じiPadがないか確認してください。\n・${dup.join('\n・')}`:''));
     }catch(e){ alert('読み込めませんでした。書き出したJSONファイルを選んでください。'); }
     el.value='';
   };
